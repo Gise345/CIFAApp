@@ -35,3 +35,13 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# environment variables
+.env
+.env.local
+.env.development
+.env.production
+
+# Firebase
+google-services.json
+GoogleService-Info.plist
