@@ -1,57 +1,75 @@
-import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
-
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
-
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
-}) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
-}
+// CIFAMobileApp/app/(tabs)/_layout.tsx
+import { Tabs } from "expo-router";
+import React from "react";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather, Ionicons  } from '@expo/vector-icons';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+  const insets = useSafeAreaInsets();
+  
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+        headerShown: false,
+        tabBarStyle: {
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom,
+          backgroundColor: '#191970', // Dark blue background
+          borderTopWidth: 0,
+        },
+        tabBarActiveTintColor: '#E50914', // Red for active tabs
+        tabBarInactiveTintColor: '#90A4ED', // Light purple for inactive tabs
+        tabBarShowLabel: true,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          marginTop: -5,
+          marginBottom: 5,
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
+          title: "Home",
+          tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="stats"
+        options={{
+          title: "Stats",
+          tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="clubs"
+        options={{
+          title: "Clubs",
+          tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="national"
+        options={{
+          title: "National",
+          tabBarIcon: ({ color }) => <Feather name="award" size={22} color={color} />,
+        }}
+      />
+      
+      <Tabs.Screen 
+        name="news"
+        options={{
+          title: "News",
+          tabBarIcon: ({ color }) => (
+            <Feather name="file-text" size={22} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="more"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: "More",
+          tabBarIcon: ({ color }) => <Feather name="menu" size={22} color={color} />,
         }}
       />
     </Tabs>
