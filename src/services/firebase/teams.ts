@@ -11,12 +11,28 @@ import {
   deleteDoc,
   orderBy,
   limit as firestoreLimit,
-  Timestamp,
+  Firestore,
   DocumentData
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { firestore, storage } from './config';
+import { ref, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage';
+import { firestore as firestoreInstance, storage as storageInstance } from './config';
 import { Team, Player } from '../../types/team';
+
+// Use Firestore with proper typing
+const getFirestore = (): Firestore => {
+  if (!firestoreInstance) {
+    throw new Error('Firestore not initialized');
+  }
+  return firestoreInstance;
+};
+
+// Use Storage with proper typing
+const getStorage = (): FirebaseStorage => {
+  if (!storageInstance) {
+    throw new Error('Firebase Storage not initialized');
+  }
+  return storageInstance;
+};
 
 /**
  * Get teams with optional filtering by type and division
@@ -25,6 +41,7 @@ export const getTeams = async (type?: string, division?: string, limit?: number)
   try {
     console.log(`Fetching teams with type: ${type}, division: ${division}`);
     
+    const firestore = getFirestore();
     const teamsCollection = collection(firestore, 'teams');
     let teamsQuery;
 
@@ -91,6 +108,7 @@ export const getNationalTeams = async (): Promise<Team[]> => {
 export const getTeamById = async (teamId: string): Promise<Team | null> => {
   try {
     console.log(`Fetching team with ID: ${teamId}`);
+    const firestore = getFirestore();
     const teamDoc = await getDoc(doc(firestore, 'teams', teamId));
     
     if (!teamDoc.exists()) {
@@ -116,6 +134,7 @@ export const getTeamPlayers = async (teamId: string, limit?: number): Promise<Pl
   try {
     console.log(`Fetching players for team ID: ${teamId}`);
     
+    const firestore = getFirestore();
     const playersCollection = collection(firestore, 'players');
     let playersQuery = query(
       playersCollection,
@@ -153,6 +172,7 @@ export const getTeamPlayers = async (teamId: string, limit?: number): Promise<Pl
 export const getPlayerById = async (playerId: string): Promise<Player | null> => {
   try {
     console.log(`Fetching player with ID: ${playerId}`);
+    const firestore = getFirestore();
     const playerDoc = await getDoc(doc(firestore, 'players', playerId));
     
     if (!playerDoc.exists()) {

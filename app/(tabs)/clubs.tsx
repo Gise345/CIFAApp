@@ -1,4 +1,4 @@
-// CIFAMobileApp/app/(tabs)/clubs.tsx
+// app/(tabs)/clubs.tsx
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
@@ -7,16 +7,195 @@ import {
   ScrollView, 
   TouchableOpacity, 
   SafeAreaView,
-  ActivityIndicator
+  ActivityIndicator,
+  Platform
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-
-import Header from '../../src/components/common/Header';
-import TeamList from '../../src/components/teams/TeamList';
-import { getTeams } from '../../src/services/firebase/teams';
+import { router } from 'expo-router';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs,
+  Firestore 
+} from 'firebase/firestore';
 import { Team } from '../../src/types/team';
-import { router } from '../../src/utils/router';
+
+// Simple Header component to avoid import issues
+const SimpleHeader = ({ title }: { title: string }) => {
+  return (
+    <View style={headerStyles.container}>
+      <Text style={headerStyles.title}>{title}</Text>
+    </View>
+  );
+};
+
+const headerStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingTop: Platform.OS === 'ios' ? 50 : 16,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  }
+});
+
+// Simple Team Card component to avoid circular dependencies
+const TeamCard = ({ team, onPress }: { team: Team, onPress: () => void }) => {
+  const getTeamInitials = (name: string) => {
+    if (!name) return '';
+    const words = name.split(' ');
+    return words.slice(0, 3).map(word => word.charAt(0)).join('').toUpperCase();
+  };
+
+  return (
+    <TouchableOpacity style={cardStyles.container} onPress={onPress}>
+      <View 
+        style={[
+          cardStyles.logo, 
+          { backgroundColor: team.colorPrimary || '#2563eb' }
+        ]}
+      >
+        <Text style={cardStyles.initials}>{getTeamInitials(team.name)}</Text>
+      </View>
+      <Text style={cardStyles.name} numberOfLines={1}>{team.name}</Text>
+      <Text style={cardStyles.division} numberOfLines={1}>{team.division}</Text>
+    </TouchableOpacity>
+  );
+};
+
+const cardStyles = StyleSheet.create({
+  container: {
+    width: 90,
+    marginHorizontal: 8,
+    alignItems: 'center',
+  },
+  logo: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  initials: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  name: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  division: {
+    fontSize: 10,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+});
+
+// Simple TeamList component to avoid circular dependencies
+const SimpleTeamList = ({ teams, onViewAll }: { teams: Team[], onViewAll?: () => void }) => {
+  if (teams.length === 0) {
+    return null;
+  }
+
+  // Limit to 5 teams
+  const displayTeams = teams.slice(0, 5);
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={listStyles.container}
+    >
+      {displayTeams.map(team => (
+        <TeamCard
+          key={team.id}
+          team={team}
+          onPress={() => router.push(`/teams/${team.id}`)}
+        />
+      ))}
+
+      {teams.length > 5 && onViewAll && (
+        <TouchableOpacity
+          style={listStyles.viewAllCard}
+          onPress={onViewAll}
+        >
+          <View style={listStyles.viewAllCircle}>
+            <Feather name="chevron-right" size={24} color="#6b7280" />
+          </View>
+          <Text style={listStyles.viewAllText}>View All</Text>
+        </TouchableOpacity>
+      )}
+    </ScrollView>
+  );
+};
+
+const listStyles = StyleSheet.create({
+  container: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  viewAllCard: {
+    width: 90,
+    marginHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewAllCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  viewAllText: {
+    fontSize: 12,
+    color: '#4b5563',
+    textAlign: 'center',
+  },
+});
+
+// Mock data for immediate display
+const mockTeams: Team[] = [
+  {
+    id: 'team1',
+    name: 'Elite Sports Club',
+    shortName: 'Elite SC',
+    division: "Men's Premier League",
+    type: 'club',
+    colorPrimary: '#16a34a', // Green
+  },
+  {
+    id: 'team2',
+    name: 'Scholars International',
+    shortName: 'Scholars',
+    division: "Men's Premier League",
+    type: 'club',
+    colorPrimary: '#1e40af', // Blue
+  },
+  {
+    id: 'team3',
+    name: 'Bodden Town FC',
+    shortName: 'Bodden Town',
+    division: "Men's Premier League",
+    type: 'club',
+    colorPrimary: '#7e22ce', // Purple
+  },
+];
 
 export default function ClubsScreen() {
   const [loading, setLoading] = useState(true);
@@ -25,58 +204,121 @@ export default function ClubsScreen() {
   const [womensTeams, setWomensTeams] = useState<Team[]>([]);
   const [youthTeams, setYouthTeams] = useState<Team[]>([]);
 
-  // Fetch teams from Firestore on component mount
+  // Use setTimeout to avoid blocking the main thread
   useEffect(() => {
-    const fetchTeamsData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        console.log('Fetching men\'s teams...');
-        // Fetch Men's Premier League teams
-        const mensData = await getTeams('club', "Men's Premier League");
-        console.log(`Found ${mensData.length} men's teams`);
-        setMensTeams(mensData);
-        
-        console.log('Fetching women\'s teams...');
-        // Fetch Women's Premier League teams
-        const womensData = await getTeams('club', "Women's Premier League");
-        console.log(`Found ${womensData.length} women's teams`);
-        setWomensTeams(womensData);
-        
-        console.log('Fetching youth teams...');
-        // Fetch Youth teams (can be filtered further if needed)
-        const youthData = await getTeams('club', "Youth League");
-        console.log(`Found ${youthData.length} youth teams`);
-        setYouthTeams(youthData);
-        
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching teams:', err);
-        setError('Failed to load teams. Please try again later.');
-        setLoading(false);
-      }
-    };
+    // First show UI immediately with loading state
+    const timeoutId = setTimeout(() => {
+      // Use dynamic import to avoid blocking bundle load
+      import('../../src/services/firebase/config').then(({ firestore }) => {
+        if (!firestore) {
+          setError('Firebase not properly initialized');
+          setLoading(false);
+          return;
+        }
 
-    fetchTeamsData();
+        // Safely proceed with typed firestore instance
+        const fetchTeams = async (firestoreInstance: Firestore) => {
+          try {
+            console.log('Fetching men\'s teams...');
+            // Mens teams
+            const mensQuery = query(
+              collection(firestoreInstance, 'teams'),
+              where('type', '==', 'club'),
+              where('division', '==', "Men's Premier League")
+            );
+            
+            const mensSnapshot = await getDocs(mensQuery);
+            const mensData = mensSnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            } as Team));
+            
+            console.log(`Found ${mensData.length} men's teams`);
+            
+            // If no data from Firestore, use mock data
+            if (mensData.length === 0) {
+              setMensTeams(mockTeams);
+            } else {
+              setMensTeams(mensData);
+            }
+            
+            // Womens teams
+            console.log('Fetching women\'s teams...');
+            try {
+              const womensQuery = query(
+                collection(firestoreInstance, 'teams'),
+                where('type', '==', 'club'),
+                where('division', '==', "Women's Premier League")
+              );
+              
+              const womensSnapshot = await getDocs(womensQuery);
+              const womensData = womensSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              } as Team));
+              
+              console.log(`Found ${womensData.length} women's teams`);
+              setWomensTeams(womensData);
+            } catch (e) {
+              console.error('Error fetching women\'s teams:', e);
+            }
+            
+            // Youth teams
+            console.log('Fetching youth teams...');
+            try {
+              const youthQuery = query(
+                collection(firestoreInstance, 'teams'),
+                where('type', '==', 'club'),
+                where('division', '==', "Youth League")
+              );
+              
+              const youthSnapshot = await getDocs(youthQuery);
+              const youthData = youthSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              } as Team));
+              
+              console.log(`Found ${youthData.length} youth teams`);
+              setYouthTeams(youthData);
+            } catch (e) {
+              console.error('Error fetching youth teams:', e);
+            }
+            
+            setLoading(false);
+          } catch (err) {
+            console.error('Error fetching teams:', err);
+            // Fallback to mock data on error
+            setMensTeams(mockTeams);
+            setError('Some team data could not be loaded');
+            setLoading(false);
+          }
+        };
+
+        // Start fetching data with the typed Firestore instance
+        fetchTeams(firestore);
+      }).catch(err => {
+        console.error('Error importing Firebase config:', err);
+        setError('Failed to initialize Firebase');
+        setLoading(false);
+      });
+    }, 100); // Small delay to allow UI to render first
+
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Navigate to all men's teams
   const handleViewAllMensTeams = () => {
-    // Use string path for navigation instead of object
-    router.push('/teams?type=club&division=Men\'s Premier League');
+    router.push("/teams?type=club&division=Men's Premier League");
   };
   
   // Navigate to all women's teams
   const handleViewAllWomensTeams = () => {
-    // Use string path for navigation instead of object
-    router.push('/teams?type=club&division=Women\'s Premier League');
+    router.push("/teams?type=club&division=Women's Premier League");
   };
   
   // Navigate to all youth teams
   const handleViewAllYouthTeams = () => {
-    // Use string path for navigation instead of object
-    router.push('/teams?type=club&division=Youth League');
+    router.push("/teams?type=club&division=Youth League");
   };
   
   return (
@@ -87,7 +329,7 @@ export default function ClubsScreen() {
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
-        <Header title="Football Clubs" />
+        <SimpleHeader title="Football Clubs" />
         
         <ScrollView 
           style={styles.content}
@@ -102,67 +344,47 @@ export default function ClubsScreen() {
             <View style={styles.errorContainer}>
               <Feather name="alert-circle" size={24} color="#ef4444" />
               <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity 
-                style={styles.retryButton}
-                onPress={() => {
-                  setError(null);
-                  setLoading(true);
-                  // Retry fetching teams
-                  getTeams('club', "Men's Premier League")
-                    .then(data => {
-                      setMensTeams(data);
-                      setLoading(false);
-                    })
-                    .catch(err => {
-                      console.error('Error retrying team fetch:', err);
-                      setError('Failed to load teams. Please try again later.');
-                      setLoading(false);
-                    });
-                }}
-              >
-                <Text style={styles.retryText}>Retry</Text>
-              </TouchableOpacity>
             </View>
           ) : (
             <View>
               {/* Men's Premier League Section */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Men's Premier League</Text>
-                {mensTeams.length > 0 ? (
-                  <TeamList 
+              {mensTeams.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Men's Premier League</Text>
+                  <SimpleTeamList 
                     teams={mensTeams} 
                     onViewAll={handleViewAllMensTeams} 
                   />
-                ) : (
-                  <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>No men's teams available</Text>
-                  </View>
-                )}
-              </View>
+                </View>
+              )}
               
               {/* Women's Premier League Section */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Women's Premier League</Text>
-                {womensTeams.length > 0 ? (
-                  <TeamList 
+              {womensTeams.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Women's Premier League</Text>
+                  <SimpleTeamList 
                     teams={womensTeams} 
                     onViewAll={handleViewAllWomensTeams} 
                   />
-                ) : (
-                  <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>No women's teams available</Text>
-                  </View>
-                )}
-              </View>
+                </View>
+              )}
               
               {/* Youth Teams Section */}
               {youthTeams.length > 0 && (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Youth Teams</Text>
-                  <TeamList 
+                  <SimpleTeamList 
                     teams={youthTeams} 
                     onViewAll={handleViewAllYouthTeams} 
                   />
+                </View>
+              )}
+              
+              {/* Show message if no teams found */}
+              {mensTeams.length === 0 && womensTeams.length === 0 && youthTeams.length === 0 && (
+                <View style={styles.emptyContainer}>
+                  <Feather name="users" size={32} color="#9ca3af" />
+                  <Text style={styles.emptyText}>No teams found</Text>
                 </View>
               )}
             </View>
@@ -214,17 +436,6 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     textAlign: 'center',
   },
-  retryButton: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
-  },
   section: {
     marginBottom: 24,
   },
@@ -235,13 +446,17 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   emptyContainer: {
-    padding: 20,
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#f3f4f6',
     borderRadius: 8,
-    alignItems: 'center',
+    marginVertical: 80,
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#6b7280',
+    marginTop: 16,
+    textAlign: 'center',
   },
 });

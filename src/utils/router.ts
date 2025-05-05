@@ -1,4 +1,4 @@
-// CIFAMobileApp/src/utils/router.ts
+// src/utils/router.ts
 import * as ExpoRouter from 'expo-router';
 
 // Export the router instance
@@ -13,7 +13,16 @@ export function useParams<T extends Record<string, string> = Record<string, stri
     return params as T;
   } catch (error) {
     console.warn('Error using params in SDK 53:', error);
-    return {} as T;
+    
+    // Fallback to useLocalSearchParams if available
+    try {
+      // @ts-ignore - SDK 53 type definitions are evolving
+      const localParams = ExpoRouter.useLocalSearchParams();
+      return localParams as T;
+    } catch (e) {
+      console.warn('Error using localParams in SDK 53:', e);
+      return {} as T;
+    }
   }
 }
 
@@ -39,6 +48,16 @@ export function goToTeam(teamId: string): void {
     router.push(`/teams/${teamId}`);
   } catch (error) {
     console.error('Error navigating to team:', error);
+    // Fallback to basic push
+    try {
+      // @ts-ignore - For SDK 53 compatibility
+      router.push({
+        pathname: '/teams/[id]',
+        params: { id: teamId }
+      });
+    } catch (e) {
+      console.error('Fallback navigation failed:', e);
+    }
   }
 }
 

@@ -1,4 +1,4 @@
-// CIFAMobileApp/app/teams/[id]/index.tsx
+// app/teams/[id]/index.tsx
 import React, { useEffect, useState } from 'react';
 import { 
   StyleSheet, 
@@ -12,14 +12,13 @@ import {
   Dimensions,
   Linking
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { useTeams } from '../../../src/hooks/useTeams';
 import { useLeagues } from '../../../src/hooks/useLeagues';
-import { getTeamIdFromPath } from '../../../src/utils/routerHelpers';
+import { useParams, getParam } from '../../../src/utils/router';
 import { Team } from '../../../src/types/team';
 import { LeagueFixture } from '../../../src/services/firebase/leagues';
 
@@ -32,7 +31,7 @@ import TeamPlayerStories from '../../../src/components/teams/TeamPlayerStories';
 const windowWidth = Dimensions.get('window').width;
 
 export default function TeamOverviewScreen() {
-  // Use the new params approach for SDK 53
+  // Use our custom router utility that handles SDK 53 params properly
   const params = useParams();
   const teamId = getParam(params, 'id') || '';
   
@@ -79,7 +78,7 @@ export default function TeamOverviewScreen() {
   
   // Navigate to fixture details
   const navigateToFixture = (fixtureId: string) => {
-    goToFixture(fixtureId);
+    router.push(`/fixtures/${fixtureId}`);
   };
   
   // Navigate to view all fixtures

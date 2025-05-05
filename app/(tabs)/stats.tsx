@@ -9,7 +9,6 @@ import {
   Image, 
   SafeAreaView 
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 
@@ -19,9 +18,9 @@ import LeagueSelector from '../../src/components/Leagues/LeagueSelector';
 import TopScorers from '../../src/components/tables/TopScorers';
 import Card from '../../src/components/common/Card';
 import { LEAGUE_CATEGORIES, LeagueCategory } from '../../src/constants/LeagueTypes';
+import { goToLeague, router } from '../../src/utils/router';
 
 export default function StatsScreen() {
-  const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState<LeagueCategory>(LEAGUE_CATEGORIES[0]);
   
   // Handle when a league category is selected
@@ -31,34 +30,28 @@ export default function StatsScreen() {
   
   // Navigation to full league tables
   const navigateToLeagueStandings = () => {
-    router.push({
-      pathname: "/leagues/[id]/standings",
-      params: { id: selectedCategory.id }
-    });
+    // Use string navigation pattern which is compatible with SDK 53
+    goToLeague(`${selectedCategory.id}/standings`);
   };
   
   // Navigation to league fixtures
   const navigateToLeagueFixtures = () => {
-    router.push({
-      pathname: "/leagues/[id]/fixtures",
-      params: { id: selectedCategory.id }
-    });
+    // Use string navigation pattern which is compatible with SDK 53
+    goToLeague(`${selectedCategory.id}/fixtures`);
   };
   
   // Navigation to league results
   const navigateToLeagueResults = () => {
-    router.push({
-      pathname: "/leagues/[id]/results",
-      params: { id: selectedCategory.id }
-    });
+    // Use string navigation pattern which is compatible with SDK 53
+    goToLeague(`${selectedCategory.id}/results`);
   };
   
   // Navigation to top scorers
   const navigateToTopScorers = () => {
-    router.push({
-      pathname: "/stats/top-scorers",
-      params: { categoryId: selectedCategory.id }
-    });
+    // Use string navigation with query parameter
+    const path = `/stats/top-scorers?categoryId=${selectedCategory.id}`;
+    // router.push can work with string paths directly
+    router.push(path);
   };
 
   return (

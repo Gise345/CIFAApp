@@ -1,4 +1,4 @@
-// CIFAMobileApp/src/components/teams/TeamList.tsx
+// src/components/teams/TeamList.tsx
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { Team } from '../../types/team';
@@ -17,21 +17,16 @@ const TeamList: React.FC<TeamListProps> = ({
   limit = 5,
   onViewAll
 }) => {
-  // Log teams for debugging
-  console.log(`TeamList received ${teams.length} teams`);
-  
   // Filter teams by division if specified
   const filteredTeams = division 
     ? teams.filter(team => team.division === division)
     : teams;
-  
-  console.log(`After filtering by ${division}: ${filteredTeams.length} teams`);
     
   // Limit number of teams shown
   const limitedTeams = filteredTeams.slice(0, limit);
   
   const handleTeamPress = (teamId: string) => {
-    // Navigate to team detail page using our new router utility
+    // Navigate to team detail page
     goToTeam(teamId);
   };
 
@@ -52,6 +47,31 @@ const TeamList: React.FC<TeamListProps> = ({
       .toUpperCase();
   };
 
+  // Generate a consistent color based on team name
+  const getTeamColor = (teamName: string): string => {
+    const colors = [
+      '#2563eb', // Blue
+      '#16a34a', // Green
+      '#7e22ce', // Purple
+      '#ca8a04', // Yellow/gold
+      '#ef4444', // Red
+      '#0891b2', // Cyan
+      '#9333ea', // Indigo
+      '#f97316', // Orange
+      '#14b8a6', // Teal
+      '#84cc16', // Lime
+    ];
+    
+    // Simple hash function to get consistent index
+    let hash = 0;
+    for (let i = 0; i < teamName.length; i++) {
+      hash = teamName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
+
   return (
     <ScrollView 
       horizontal 
@@ -64,7 +84,12 @@ const TeamList: React.FC<TeamListProps> = ({
           style={styles.teamCard}
           onPress={() => handleTeamPress(team.id)}
         >
-          <View style={[styles.teamLogo, { backgroundColor: team.colorPrimary || '#2563eb' }]}>
+          <View 
+            style={[
+              styles.teamLogo, 
+              { backgroundColor: team.colorPrimary || getTeamColor(team.name) }
+            ]}
+          >
             {team.logo ? (
               <Image source={{ uri: team.logo }} style={styles.logoImage} />
             ) : (
@@ -78,7 +103,7 @@ const TeamList: React.FC<TeamListProps> = ({
         </TouchableOpacity>
       ))}
       
-      {onViewAll && filteredTeams.length > 0 && (
+      {onViewAll && filteredTeams.length > limit && (
         <TouchableOpacity 
           style={styles.viewAllCard}
           onPress={onViewAll}

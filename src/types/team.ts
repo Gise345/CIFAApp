@@ -1,10 +1,10 @@
-// CIFAMobileApp/src/types/team.ts
+// src/types/team.ts
 
 export interface Team {
   id: string;
   name: string;
   shortName: string;
-  logo: string;
+  logo?: string;  // Make logo optional with the ? operator
   type: 'national' | 'club';
   division: string;
   colorPrimary?: string;
