@@ -12,12 +12,14 @@ import {
   Dimensions,
   Linking
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { useTeams } from '../../../src/hooks/useTeams';
 import { useLeagues } from '../../../src/hooks/useLeagues';
+import { getTeamIdFromPath } from '../../../src/utils/routerHelpers';
 import { Team } from '../../../src/types/team';
 import { LeagueFixture } from '../../../src/services/firebase/leagues';
 
@@ -25,14 +27,14 @@ import Card from '../../../src/components/common/Card';
 import Section from '../../../src/components/common/Section';
 import EnhancedPlayerList from '../../../src/components/teams/EnhancedPlayerList';
 import FixtureItem from '../../../src/components/Leagues/FixtureItem';
-import LeagueStandings from '../../../src/components/Leagues/LeagueStandings';
+import TeamPlayerStories from '../../../src/components/teams/TeamPlayerStories'; 
 
 const windowWidth = Dimensions.get('window').width;
 
 export default function TeamOverviewScreen() {
-  const { id } = useLocalSearchParams();
-  const teamId = Array.isArray(id) ? id[0] : id;
-  const router = useRouter();
+  // Use the new params approach for SDK 53
+  const params = useParams();
+  const teamId = getParam(params, 'id') || '';
   
   const { 
     selectedTeam, 
@@ -71,13 +73,13 @@ export default function TeamOverviewScreen() {
   
   // Toggle follow team
   const toggleFollow = () => {
-    // In a real app, you would update this in a database
+    // In a real app, you would update this in the database
     setIsFollowing(!isFollowing);
   };
   
   // Navigate to fixture details
   const navigateToFixture = (fixtureId: string) => {
-    router.push(`/fixtures/${fixtureId}`);
+    goToFixture(fixtureId);
   };
   
   // Navigate to view all fixtures
@@ -97,6 +99,23 @@ export default function TeamOverviewScreen() {
   // Open social media
   const openSocialMedia = (url: string) => {
     Linking.openURL(url);
+  };
+  
+  // Get team initials
+  const getTeamInitials = (teamName: string): string => {
+    if (!teamName) return '';
+    
+    const words = teamName.split(' ');
+    if (words.length === 1) {
+      return words[0].substring(0, 3).toUpperCase();
+    }
+    
+    // Return first letter of each word (up to 3)
+    return words
+      .slice(0, 3)
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase();
   };
   
   // Render loading state
@@ -163,6 +182,11 @@ export default function TeamOverviewScreen() {
               </TouchableOpacity>
             </LinearGradient>
           </View>
+          
+          {/* Player Stories */}
+          {teamPlayers.length > 0 && (
+            <TeamPlayerStories teamId={teamId} players={teamPlayers} />
+          )}
           
           {/* Quick Stats */}
           <View style={styles.quickStatsSection}>
@@ -337,25 +361,8 @@ export default function TeamOverviewScreen() {
   );
 }
 
-// Helper function to get team initials
-const getTeamInitials = (teamName: string): string => {
-  if (!teamName) return '';
-  
-  const words = teamName.split(' ');
-  if (words.length === 1) {
-    return words[0].substring(0, 3).toUpperCase();
-  }
-  
-  // Return first letter of each word (up to 3)
-  return words
-    .slice(0, 3)
-    .map(word => word.charAt(0))
-    .join('')
-    .toUpperCase();
-};
-
 // Helper function to get social media icon
-const getSocialIcon = (platform: string): any => { // Change return type to 'any'
+const getSocialIcon = (platform: string): any => {
   const platformLower = platform.toLowerCase();
   if (platformLower === 'facebook') return 'facebook';
   if (platformLower === 'twitter' || platformLower === 'x') return 'twitter';
@@ -486,7 +493,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginTop: -20,
+    marginTop: 16,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

@@ -1,67 +1,54 @@
 // CIFAMobileApp/src/utils/routerHelpers.ts
-import { useRouter, router } from 'expo-router';
 
-// Type definition for search params
-export type SearchParamType = Record<string, string | string[]>;
-
-/**
- * A helper function to get route params using useRouter
- * This is an alternative to useLocalSearchParams in Expo Router v3 (SDK 53)
- */
-export function useRouteParams<T extends SearchParamType>(): T {
-  // Note: in SDK 53, useLocalSearchParams may not be available 
-  // as a direct import, so we have to use a workaround
-  const params = {} as T;
-  return params;
-}
+// This helper file contains functions to deal with Expo Router v3 parameters
+// with TypeScript in SDK 53
 
 /**
- * Get the ID parameter from the route
- * @returns The ID parameter as a string or undefined
+ * Helper function to safely get a parameter value from Expo Router path segments
+ * Works with the new API in SDK 53
  */
-export function useRouteId(): string | undefined {
-  // Note: this is a simplified implementation for SDK 53
-  // This should be enhanced when the official API is stable
-  const r = useRouter();
-  // Access the path segments manually
-  return undefined;
-}
-
-/**
- * Navigate to a new route with parameters
- * @param route The route path to navigate to
- * @param params Optional parameters to pass to the route
- */
-export function navigate(route: string, params?: Record<string, string | number | boolean>) {
-  if (params) {
-    // Convert all parameters to strings
-    const queryParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      queryParams.append(key, String(value));
-    });
-    
-    // Check if route already has query params
-    const hasQueryParams = route.includes('?');
-    const separator = hasQueryParams ? '&' : '?';
-    const queryString = queryParams.toString();
-    
-    // Only append the separator and query string if there are params
-    if (queryString) {
-      router.navigate(`${route}${separator}${queryString}`);
-    } else {
-      router.navigate(route);
-    }
-  } else {
-    router.navigate(route);
+export function getParamFromSegment(segments: Record<string, string | string[]>, paramName: string): string | null {
+  const param = segments[paramName];
+  
+  if (!param) {
+    return null;
   }
+  
+  if (Array.isArray(param)) {
+    return param[0] || null;
+  }
+  
+  return param;
 }
 
 /**
- * Go back to the previous screen
+ * Helper function to get team ID from URL path in team detail screens
+ * For use in the app/teams/[id]/ directory
  */
-export function goBack() {
-  router.back();
+export function getTeamIdFromPath(segments: Record<string, string | string[]>): string | null {
+  return getParamFromSegment(segments, 'id');
 }
 
-// Export the router hooks from expo-router
-export { useRouter };
+/**
+ * Helper function to get player ID from URL path in player detail screens
+ * For use in the app/players/[id].tsx file
+ */
+export function getPlayerIdFromPath(segments: Record<string, string | string[]>): string | null {
+  return getParamFromSegment(segments, 'id');
+}
+
+/**
+ * Helper function to get fixture ID from URL path in fixture detail screens
+ * For use in the app/fixtures/[id].tsx file
+ */
+export function getFixtureIdFromPath(segments: Record<string, string | string[]>): string | null {
+  return getParamFromSegment(segments, 'id');
+}
+
+/**
+ * Helper function to get league ID from URL path in league screens
+ * For use in the app/leagues/[id]/ directory
+ */
+export function getLeagueIdFromPath(segments: Record<string, string | string[]>): string | null {
+  return getParamFromSegment(segments, 'id');
+}

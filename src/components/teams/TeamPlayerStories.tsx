@@ -9,7 +9,7 @@ import {
   Image,
   Modal 
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { Player } from '../../types/team';
@@ -20,7 +20,6 @@ interface TeamPlayerStoriesProps {
 }
 
 const TeamPlayerStories: React.FC<TeamPlayerStoriesProps> = ({ teamId, players }) => {
-  const router = useRouter();
   const [activeStory, setActiveStory] = useState<Player | null>(null);
   const [storyVisible, setStoryVisible] = useState(false);
   

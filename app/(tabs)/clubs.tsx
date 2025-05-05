@@ -4,85 +4,79 @@ import {
   StyleSheet, 
   View, 
   Text, 
-  FlatList, 
+  ScrollView, 
   TouchableOpacity, 
-  SafeAreaView
+  SafeAreaView,
+  ActivityIndicator
 } from 'react-native';
-import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 
 import Header from '../../src/components/common/Header';
-import Card from '../../src/components/common/Card';
 import TeamList from '../../src/components/teams/TeamList';
-
-// Basic Team type definition
-interface Team {
-  id: string;
-  name: string;
-  shortName: string;
-  division: string;
-  colorPrimary: string;
-  logo?: string;
-}
+import { getTeams } from '../../src/services/firebase/teams';
+import { Team } from '../../src/types/team';
+import { router } from '../../src/utils/router';
 
 export default function ClubsScreen() {
   const [loading, setLoading] = useState(true);
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [mensTeams, setMensTeams] = useState<Team[]>([]);
+  const [womensTeams, setWomensTeams] = useState<Team[]>([]);
+  const [youthTeams, setYouthTeams] = useState<Team[]>([]);
 
-  
-
-  // Mock data for teams - in production, this would come from your API or Firebase
+  // Fetch teams from Firestore on component mount
   useEffect(() => {
-    // Simulate loading from API
-    setTimeout(() => {
-      const mockTeams: Team[] = [
-        {
-          id: 'team1',
-          name: 'Elite Sports Club',
-          shortName: 'Elite SC',
-          division: "Men's Premier League",
-          colorPrimary: '#16a34a', // Green
-        },
-        {
-          id: 'team2',
-          name: 'Scholars International',
-          shortName: 'Scholars',
-          division: "Men's Premier League",
-          colorPrimary: '#1e40af', // Blue
-        },
-        {
-          id: 'team3',
-          name: 'Bodden Town FC',
-          shortName: 'Bodden Town',
-          division: "Men's Premier League",
-          colorPrimary: '#7e22ce', // Purple
-        },
-        {
-          id: 'team4',
-          name: 'Future SC',
-          shortName: 'Future',
-          division: "Men's Premier League",
-          colorPrimary: '#ca8a04', // Yellow
-        },
-        {
-          id: 'team5',
-          name: 'Roma United',
-          shortName: 'Roma',
-          division: "Men's Premier League",
-          colorPrimary: '#be123c', // Red
-        },
-      ];
-      
-      setTeams(mockTeams);
-      setLoading(false);
-    }, 1000);
+    const fetchTeamsData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('Fetching men\'s teams...');
+        // Fetch Men's Premier League teams
+        const mensData = await getTeams('club', "Men's Premier League");
+        console.log(`Found ${mensData.length} men's teams`);
+        setMensTeams(mensData);
+        
+        console.log('Fetching women\'s teams...');
+        // Fetch Women's Premier League teams
+        const womensData = await getTeams('club', "Women's Premier League");
+        console.log(`Found ${womensData.length} women's teams`);
+        setWomensTeams(womensData);
+        
+        console.log('Fetching youth teams...');
+        // Fetch Youth teams (can be filtered further if needed)
+        const youthData = await getTeams('club', "Youth League");
+        console.log(`Found ${youthData.length} youth teams`);
+        setYouthTeams(youthData);
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching teams:', err);
+        setError('Failed to load teams. Please try again later.');
+        setLoading(false);
+      }
+    };
+
+    fetchTeamsData();
   }, []);
 
-  // View all teams
-  const handleViewAllTeams = () => {
-    // Navigate to all teams view
-    console.log('View all teams');
+  // Navigate to all men's teams
+  const handleViewAllMensTeams = () => {
+    // Use string path for navigation instead of object
+    router.push('/teams?type=club&division=Men\'s Premier League');
+  };
+  
+  // Navigate to all women's teams
+  const handleViewAllWomensTeams = () => {
+    // Use string path for navigation instead of object
+    router.push('/teams?type=club&division=Women\'s Premier League');
+  };
+  
+  // Navigate to all youth teams
+  const handleViewAllYouthTeams = () => {
+    // Use string path for navigation instead of object
+    router.push('/teams?type=club&division=Youth League');
   };
   
   return (
@@ -95,25 +89,85 @@ export default function ClubsScreen() {
       <SafeAreaView style={styles.safeArea}>
         <Header title="Football Clubs" />
         
-        <View style={styles.content}>
+        <ScrollView 
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+        >
           {loading ? (
             <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#2563eb" />
               <Text style={styles.loadingText}>Loading teams...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Feather name="alert-circle" size={24} color="#ef4444" />
+              <Text style={styles.errorText}>{error}</Text>
+              <TouchableOpacity 
+                style={styles.retryButton}
+                onPress={() => {
+                  setError(null);
+                  setLoading(true);
+                  // Retry fetching teams
+                  getTeams('club', "Men's Premier League")
+                    .then(data => {
+                      setMensTeams(data);
+                      setLoading(false);
+                    })
+                    .catch(err => {
+                      console.error('Error retrying team fetch:', err);
+                      setError('Failed to load teams. Please try again later.');
+                      setLoading(false);
+                    });
+                }}
+              >
+                <Text style={styles.retryText}>Retry</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View>
+              {/* Men's Premier League Section */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Premier League</Text>
-                <TeamList onViewAll={handleViewAllTeams} />
+                <Text style={styles.sectionTitle}>Men's Premier League</Text>
+                {mensTeams.length > 0 ? (
+                  <TeamList 
+                    teams={mensTeams} 
+                    onViewAll={handleViewAllMensTeams} 
+                  />
+                ) : (
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>No men's teams available</Text>
+                  </View>
+                )}
               </View>
               
+              {/* Women's Premier League Section */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Women's League</Text>
-                <TeamList onViewAll={handleViewAllTeams} />
+                <Text style={styles.sectionTitle}>Women's Premier League</Text>
+                {womensTeams.length > 0 ? (
+                  <TeamList 
+                    teams={womensTeams} 
+                    onViewAll={handleViewAllWomensTeams} 
+                  />
+                ) : (
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>No women's teams available</Text>
+                  </View>
+                )}
               </View>
+              
+              {/* Youth Teams Section */}
+              {youthTeams.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Youth Teams</Text>
+                  <TeamList 
+                    teams={youthTeams} 
+                    onViewAll={handleViewAllYouthTeams} 
+                  />
+                </View>
+              )}
             </View>
           )}
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -131,16 +185,45 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+  },
+  scrollContent: {
     padding: 16,
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 80,
   },
   loadingText: {
+    marginTop: 16,
     fontSize: 16,
     color: '#6b7280',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  errorText: {
+    marginTop: 8,
+    marginBottom: 16,
+    fontSize: 16,
+    color: '#ef4444',
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
   },
   section: {
     marginBottom: 24,
@@ -150,5 +233,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 16,
     color: '#111827',
+  },
+  emptyContainer: {
+    padding: 20,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#6b7280',
   },
 });

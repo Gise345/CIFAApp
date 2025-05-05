@@ -9,15 +9,15 @@ import {
 } from 'react-native';
 import { Tabs } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useTeams } from '../../../src/hooks/useTeams';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useParams, getParam, goBack } from '../../../src/utils/router';
 
 export default function TeamLayout() {
-  const { id } = useLocalSearchParams();
-  const teamId = Array.isArray(id) ? id[0] : id;
-  const router = useRouter();
+  // Use the new params approach for SDK 53
+  const params = useParams();
+  const teamId = getParam(params, 'id') || '';
   
   const { selectedTeam, loading, error, fetchTeamById } = useTeams();
   const [isFollowing, setIsFollowing] = useState(false);
@@ -50,6 +50,23 @@ export default function TeamLayout() {
     // In a real app, you would update this in a database
   };
   
+  // Get team initials
+  const getTeamInitials = (teamName: string): string => {
+    if (!teamName) return '';
+    
+    const words = teamName.split(' ');
+    if (words.length === 1) {
+      return words[0].substring(0, 3).toUpperCase();
+    }
+    
+    // Return first letter of each word (up to 3)
+    return words
+      .slice(0, 3)
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase();
+  };
+  
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -62,7 +79,7 @@ export default function TeamLayout() {
           {/* Back Button */}
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => goBack()}
           >
             <Feather name="arrow-left" size={24} color="white" />
           </TouchableOpacity>
@@ -174,23 +191,6 @@ export default function TeamLayout() {
     </View>
   );
 }
-
-// Helper function to get team initials
-const getTeamInitials = (teamName: string): string => {
-  if (!teamName) return '';
-  
-  const words = teamName.split(' ');
-  if (words.length === 1) {
-    return words[0].substring(0, 3).toUpperCase();
-  }
-  
-  // Return first letter of each word (up to 3)
-  return words
-    .slice(0, 3)
-    .map(word => word.charAt(0))
-    .join('')
-    .toUpperCase();
-};
 
 const styles = StyleSheet.create({
   container: {

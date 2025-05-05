@@ -1,11 +1,9 @@
-// CIFAMobileApp/src/components/leagues/FixtureItem.tsx
+// CIFAMobileApp/src/components/Leagues/FixtureItem.tsx
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { format } from 'date-fns';
 import { Feather } from '@expo/vector-icons';
-
 import { LeagueFixture } from '../../services/firebase/leagues';
-import TeamLogo from '../common/TeamLogo';
 
 interface FixtureItemProps {
   fixture: LeagueFixture;
@@ -58,6 +56,23 @@ const FixtureItem: React.FC<FixtureItemProps> = ({
     }
   };
 
+  // Get team initials (for missing team logos)
+  const getTeamInitials = (teamName: string) => {
+    if (!teamName) return '';
+    
+    const words = teamName.split(' ');
+    if (words.length === 1) {
+      return words[0].substring(0, 3).toUpperCase();
+    }
+    
+    // Return first letter of each word (up to 3)
+    return words
+      .slice(0, 3)
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase();
+  };
+
   return (
     <TouchableOpacity 
       style={styles.container}
@@ -67,7 +82,7 @@ const FixtureItem: React.FC<FixtureItemProps> = ({
       {/* Match Info (Date, Time, League) */}
       {showLeague && (
         <View style={styles.matchInfo}>
-          <Text style={styles.leagueText}>{fixture.leagueId}</Text>
+          <Text style={styles.leagueText}>{fixture.leagueId || 'League Match'}</Text>
         </View>
       )}
       
@@ -75,12 +90,11 @@ const FixtureItem: React.FC<FixtureItemProps> = ({
       <View style={styles.teamsContainer}>
         {/* Home Team */}
         <View style={styles.teamContainer}>
-          <TeamLogo 
-            teamId={fixture.homeTeamId}
-            teamName={fixture.homeTeamName}
-            teamCode={getTeamInitials(fixture.homeTeamName)}
-            size="small"
-          />
+          <View style={styles.teamLogoContainer}>
+            <Text style={styles.teamLogoText}>
+              {getTeamInitials(fixture.homeTeamName)}
+            </Text>
+          </View>
           <Text style={styles.teamName} numberOfLines={1}>
             {fixture.homeTeamName}
           </Text>
@@ -90,7 +104,7 @@ const FixtureItem: React.FC<FixtureItemProps> = ({
         <View style={styles.scoreContainer}>
           {hasScores ? (
             <Text style={styles.scoreText}>
-              {fixture.homeScore} - {fixture.awayScore}
+              {fixture.homeScore || 0} - {fixture.awayScore || 0}
             </Text>
           ) : (
             <View style={styles.vsContainer}>
@@ -114,12 +128,11 @@ const FixtureItem: React.FC<FixtureItemProps> = ({
           <Text style={styles.teamName} numberOfLines={1}>
             {fixture.awayTeamName}
           </Text>
-          <TeamLogo 
-            teamId={fixture.awayTeamId}
-            teamName={fixture.awayTeamName}
-            teamCode={getTeamInitials(fixture.awayTeamName)}
-            size="small"
-          />
+          <View style={styles.teamLogoContainer}>
+            <Text style={styles.teamLogoText}>
+              {getTeamInitials(fixture.awayTeamName)}
+            </Text>
+          </View>
         </View>
       </View>
       
@@ -132,23 +145,6 @@ const FixtureItem: React.FC<FixtureItemProps> = ({
       )}
     </TouchableOpacity>
   );
-};
-
-// Helper function to get team initials
-const getTeamInitials = (teamName: string): string => {
-  if (!teamName) return '';
-  
-  const words = teamName.split(' ');
-  if (words.length === 1) {
-    return words[0].substring(0, 3).toUpperCase();
-  }
-  
-  // Return first letter of each word (up to 3)
-  return words
-    .slice(0, 3)
-    .map(word => word.charAt(0))
-    .join('')
-    .toUpperCase();
 };
 
 const styles = StyleSheet.create({
@@ -180,6 +176,20 @@ const styles = StyleSheet.create({
   },
   awayTeam: {
     justifyContent: 'flex-end',
+  },
+  teamLogoContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#2563eb',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  teamLogoText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   teamName: {
     fontSize: 14,

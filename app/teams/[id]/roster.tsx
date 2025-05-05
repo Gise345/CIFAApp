@@ -3,56 +3,102 @@ import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
-  SafeAreaView,
   ScrollView,
+  RefreshControl,
+  ActivityIndicator,
   Text
 } from 'react-native';
-import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import Header from '../../../src/components/common/Header';
+import { Feather } from '@expo/vector-icons';
+import { useParams, getParam } from '../../../src/utils/router';
+import { useTeams } from '../../../src/hooks/useTeams';
 import TeamRoster from '../../../src/components/teams/TeamRoster';
 
-// Simple utility to get team ID from URL
-const getTeamIdFromPath = (): string => {
-  // In a production app, you would parse the path segments 
-  // For now, we'll return a default value
-  return 'team1';
-};
-
 export default function TeamRosterScreen() {
-  // Get the team ID from the URL path
-  const teamId = getTeamIdFromPath();
+  // Use the new params approach for SDK 53
+  const params = useParams();
+  const teamId = getParam(params, 'id') || '';
+  
+  const { loading, error, fetchTeamPlayers, teamPlayers } = useTeams();
   const [refreshing, setRefreshing] = useState(false);
 
+  // Load players on mount
+  useEffect(() => {
+    if (teamId) {
+      fetchTeamPlayers(teamId);
+    }
+  }, [teamId]);
+
+  // Handle refresh
+  const handleRefresh = async () => {
+    if (!teamId) return;
+    
+    setRefreshing(true);
+    await fetchTeamPlayers(teamId);
+    setRefreshing(false);
+  };
+
+  if (loading && !refreshing) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={styles.loadingText}>Loading squad...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Feather name="alert-circle" size={32} color="#ef4444" />
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+
   return (
-    <LinearGradient
-      colors={['#0047AB', '#191970', '#041E42']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+    <ScrollView 
       style={styles.container}
+      refreshControl={
+        <RefreshControl 
+          refreshing={refreshing} 
+          onRefresh={handleRefresh} 
+          colors={['#2563eb']}
+        />
+      }
     >
-      <SafeAreaView style={styles.safeArea}>
-        <Header title="Team Squad" showBack={true} />
-        <View style={styles.content}>
-          <TeamRoster teamId={teamId} />
-        </View>
-      </SafeAreaView>
-    </LinearGradient>
+      <TeamRoster teamId={teamId} />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: 'white',
   },
-  safeArea: {
+  loadingContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 20,
   },
-  content: {
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6b7280',
+  },
+  errorContainer: {
     flex: 1,
-    backgroundColor: '#f9fafb',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
-  }
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#ef4444',
+    textAlign: 'center',
+  },
 });

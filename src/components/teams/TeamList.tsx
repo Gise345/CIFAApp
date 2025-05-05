@@ -1,85 +1,55 @@
 // CIFAMobileApp/src/components/teams/TeamList.tsx
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-
-interface Team {
-  id: string;
-  name: string;
-  shortName: string;
-  division: string;
-  colorPrimary: string;
-  logo?: string;
-}
+import { Team } from '../../types/team';
+import { goToTeam } from '../../utils/router';
 
 interface TeamListProps {
+  teams: Team[];
   division?: string;
   limit?: number;
   onViewAll?: () => void;
 }
 
 const TeamList: React.FC<TeamListProps> = ({ 
+  teams,
   division,
   limit = 5,
   onViewAll
 }) => {
-  const router = useRouter();
-  
-  // Example team data - in production this would come from Firebase
-  const teams: Team[] = [
-    {
-      id: 'team1',
-      name: 'Elite Sports Club',
-      shortName: 'Elite SC',
-      division: "Men's Premier League",
-      colorPrimary: '#16a34a', // Green
-      logo: '/api/placeholder/100/100',
-    },
-    {
-      id: 'team2',
-      name: 'Scholars International',
-      shortName: 'Scholars',
-      division: "Men's Premier League",
-      colorPrimary: '#1e40af', // Blue
-      logo: '/api/placeholder/100/100',
-    },
-    {
-      id: 'team3',
-      name: 'Bodden Town FC',
-      shortName: 'Bodden Town',
-      division: "Men's Premier League",
-      colorPrimary: '#7e22ce', // Purple
-      logo: '/api/placeholder/100/100',
-    },
-    {
-      id: 'team4',
-      name: 'Future SC',
-      shortName: 'Future',
-      division: "Men's Premier League",
-      colorPrimary: '#ca8a04', // Yellow
-      logo: '/api/placeholder/100/100',
-    },
-    {
-      id: 'team5',
-      name: 'Roma United',
-      shortName: 'Roma',
-      division: "Men's Premier League",
-      colorPrimary: '#be123c', // Red
-      logo: '/api/placeholder/100/100',
-    },
-  ];
+  // Log teams for debugging
+  console.log(`TeamList received ${teams.length} teams`);
   
   // Filter teams by division if specified
   const filteredTeams = division 
     ? teams.filter(team => team.division === division)
     : teams;
+  
+  console.log(`After filtering by ${division}: ${filteredTeams.length} teams`);
     
   // Limit number of teams shown
   const limitedTeams = filteredTeams.slice(0, limit);
   
   const handleTeamPress = (teamId: string) => {
-    // Use bracket syntax to navigate
-    router.push(`/teams/${teamId}`);
+    // Navigate to team detail page using our new router utility
+    goToTeam(teamId);
+  };
+
+  // Get team initials for placeholder logo
+  const getTeamInitials = (teamName: string): string => {
+    if (!teamName) return '';
+    
+    const words = teamName.split(' ');
+    if (words.length === 1) {
+      return words[0].substring(0, 3).toUpperCase();
+    }
+    
+    // Return first letter of each word (up to 3)
+    return words
+      .slice(0, 3)
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase();
   };
 
   return (
@@ -94,12 +64,12 @@ const TeamList: React.FC<TeamListProps> = ({
           style={styles.teamCard}
           onPress={() => handleTeamPress(team.id)}
         >
-          <View style={[styles.teamLogo, { backgroundColor: team.colorPrimary }]}>
+          <View style={[styles.teamLogo, { backgroundColor: team.colorPrimary || '#2563eb' }]}>
             {team.logo ? (
               <Image source={{ uri: team.logo }} style={styles.logoImage} />
             ) : (
               <Text style={styles.teamInitials}>
-                {team.shortName.substring(0, 3)}
+                {getTeamInitials(team.name)}
               </Text>
             )}
           </View>
@@ -108,7 +78,7 @@ const TeamList: React.FC<TeamListProps> = ({
         </TouchableOpacity>
       ))}
       
-      {onViewAll && (
+      {onViewAll && filteredTeams.length > 0 && (
         <TouchableOpacity 
           style={styles.viewAllCard}
           onPress={onViewAll}
@@ -125,7 +95,7 @@ const TeamList: React.FC<TeamListProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     paddingVertical: 8,
   },
   teamCard: {

@@ -9,18 +9,18 @@ import {
   ActivityIndicator, 
   TouchableOpacity 
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { format } from 'date-fns';
 
 import { useTeams } from '../../../src/hooks/useTeams';
 import { LeagueFixture } from '../../../src/services/firebase/leagues';
 import FixtureItem from '../../../src/components/Leagues/FixtureItem';
+import { useParams, getParam, router, goToFixture } from '../../../src/utils/router';
 
 export default function TeamFixturesScreen() {
-  const { id } = useLocalSearchParams();
-  const teamId = Array.isArray(id) ? id[0] : id;
-  const router = useRouter();
+  // Use the new params approach for SDK 53
+  const params = useParams();
+  const teamId = getParam(params, 'id') || '';
   
   const { selectedTeam, teamFixtures, loading, error, loadTeamData, getFixturesByStatus } = useTeams();
   const [refreshing, setRefreshing] = useState(false);
@@ -52,7 +52,7 @@ export default function TeamFixturesScreen() {
   
   // Navigate to fixture details
   const navigateToFixture = (fixtureId: string) => {
-    router.push(`/fixtures/${fixtureId}`);
+    goToFixture(fixtureId);
   };
   
   // Group fixtures by month for section headers

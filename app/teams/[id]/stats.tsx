@@ -7,25 +7,19 @@ import {
   ScrollView, 
   RefreshControl
 } from 'react-native';
-import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { useTeams } from '../../../src/hooks/useTeams';
+import { useParams, getParam } from '../../../src/utils/router';
 import Card from '../../../src/components/common/Card';
 import TeamComparison from '../../../src/components/teams/TeamComparison';
 
-// Define a function to get the team ID from the URL segments
-const getTeamIdFromPath = () => {
-  // In a real implementation, you would parse the router path
-  // For now, hardcode a value just to make TypeScript happy
-  return "team1";
-};
-
 export default function TeamStatsScreen() {
-  // Get team ID from URL segments
-  const teamId = getTeamIdFromPath();
+  // Use the new params approach for SDK 53
+  const params = useParams();
+  const teamId = getParam(params, 'id') || '';
   
-  const { selectedTeam, teamFixtures, loading, error, loadTeamData } = useTeams();
+  const { selectedTeam, teamFixtures, loading, error, loadTeamData, getFixturesByStatus } = useTeams();
   const [refreshing, setRefreshing] = useState(false);
   
   // Load team data on mount
