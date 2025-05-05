@@ -1,64 +1,172 @@
 // src/hooks/useAuth.ts
-import { useState, useEffect } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { useContext, useState, useEffect, useCallback } from 'react';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  updateProfile,
+  User
+} from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, firestore } from '../services/firebase/config';
+import { FirebaseAuthContext } from '../providers/FirebaseProvider';
 
-type AuthUser = User | null;
+interface AuthUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}
 
 interface UseAuthReturn {
-  user: AuthUser;
+  user: User | null;
+  authUser: AuthUser | null;
   loading: boolean;
   error: Error | null;
   isAdmin: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string) => Promise<void>;
+  signOut: () => Promise<void>;
+}
+
+interface SignUpParams {
+  email: string;
+  password: string;
+  name: string;
+}
+
+interface UserProfile {
+  email: string;
+  name: string;
+  role: 'user' | 'admin';
+  favoriteTeams: string[];
+  notificationSettings: {
+    matchAlerts: boolean;
+    news: boolean;
+    teamUpdates: boolean;
+  };
+  createdAt: Date;
 }
 
 export const useAuth = (): UseAuthReturn => {
-  const [user, setUser] = useState<AuthUser>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { user, loading: contextLoading } = useContext(FirebaseAuthContext);
   const [error, setError] = useState<Error | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
 
+  // Check if user is admin when user changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      async (firebaseUser) => {
-        setLoading(true);
-        try {
-          if (firebaseUser) {
-            setUser(firebaseUser);
-            
-            // Check if user is admin
-            const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
-            if (userDoc.exists()) {
-              const userData = userDoc.data();
-              setIsAdmin(userData.role === 'admin');
-            } else {
-              setIsAdmin(false);
-            }
-          } else {
-            setUser(null);
-            setIsAdmin(false);
-          }
-          setError(null);
-        } catch (err) {
-          console.error('Error in auth state change:', err);
-          setError(err instanceof Error ? err : new Error('Authentication error'));
-          setIsAdmin(false);
-        } finally {
-          setLoading(false);
-        }
-      },
-      (error) => {
-        console.error('Auth state change error:', error);
-        setError(error);
-        setLoading(false);
+    const checkAdminStatus = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        setAuthUser(null);
+        return;
       }
-    );
 
-    // Cleanup subscription
-    return () => unsubscribe();
+      try {
+        // Map User to AuthUser
+        setAuthUser({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL
+        });
+        
+        // Check if user is admin
+        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setIsAdmin(userData.role === 'admin');
+        } else {
+          setIsAdmin(false);
+        }
+      } catch (err) {
+        console.error('Error checking admin status:', err);
+        setIsAdmin(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [user]);
+
+  // Sign in with email and password
+  const signIn = useCallback(async (email: string, password: string): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(null);
+      await signInWithEmailAndPassword(auth, email, password);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error signing in:', error);
+      setError(error instanceof Error ? error : new Error('Failed to sign in'));
+      setLoading(false);
+      throw error;
+    }
   }, []);
 
-  return { user, loading, error, isAdmin };
+  // Sign up with email, password, and name
+  const signUp = useCallback(async (email: string, password: string, name: string): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // Update user profile with name
+      await updateProfile(user, {
+        displayName: name
+      });
+      
+      // Create user document in Firestore
+      const userProfile: UserProfile = {
+        email,
+        name,
+        role: 'user',
+        favoriteTeams: [],
+        notificationSettings: {
+          matchAlerts: true,
+          news: true,
+          teamUpdates: true
+        },
+        createdAt: new Date()
+      };
+      
+      await setDoc(doc(firestore, 'users', user.uid), userProfile);
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error signing up:', error);
+      setError(error instanceof Error ? error : new Error('Failed to sign up'));
+      setLoading(false);
+      throw error;
+    }
+  }, []);
+
+  // Sign out
+  const signOut = useCallback(async (): Promise<void> => {
+    try {
+      setLoading(true);
+      await firebaseSignOut(auth);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error signing out:', error);
+      setError(error instanceof Error ? error : new Error('Failed to sign out'));
+      setLoading(false);
+      throw error;
+    }
+  }, []);
+
+  return {
+    user,
+    authUser,
+    loading: loading || contextLoading,
+    error,
+    isAdmin,
+    signIn,
+    signUp,
+    signOut
+  };
 };

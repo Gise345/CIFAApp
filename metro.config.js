@@ -1,11 +1,12 @@
 // metro.config.js
 const { getDefaultConfig } = require('expo/metro-config');
 
-const config = getDefaultConfig(__dirname);
+const defaultConfig = getDefaultConfig(__dirname);
 
-config.resolver.extraNodeModules = {
-  ...config.resolver.extraNodeModules,
-  'firebase/auth': require.resolve('firebase/auth/dist/index.rn.cjs'),
-};
+// Add this line to fix Firebase auth issues with Expo SDK 53
+defaultConfig.resolver.unstable_enablePackageExports = false;
 
-module.exports = config;
+// Add cjs support if needed
+defaultConfig.resolver.sourceExts.push('cjs');
+
+module.exports = defaultConfig;

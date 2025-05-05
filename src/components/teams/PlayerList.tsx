@@ -2,8 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
-
+import Feather from '@expo/vector-icons/Feather';
 import Card from '../common/Card';
 import Section from '../common/Section';
 import { useTeams } from '../../../src/hooks/useTeams';

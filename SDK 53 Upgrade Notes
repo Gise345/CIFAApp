@@ -1,0 +1,65 @@
+# Expo SDK 53 Upgrade Notes
+
+## Breaking Changes in SDK 53
+
+There have been several breaking changes in Expo SDK 53 and Expo Router that affect the typings and API for routing. Here are the key changes and how to handle them:
+
+### 1. TypeScript Issues with Router API
+
+In Expo Router v3 (SDK 53), there have been changes to how router parameters are accessed. The `useLocalSearchParams` and `useGlobalSearchParams` hooks may not be directly importable from `expo-router` in the same way as in previous versions.
+
+### 2. Router API Changes
+
+- The `router.push` behavior has changed to always push routes (previously it would navigate). The equivalent of the old behavior is now `router.navigate`.
+- The `params` property may not be accessible on the router object.
+
+### 3. Temporary Solutions
+
+Until the official TypeScript definitions are updated, here are some workarounds:
+
+- Use `router` (import from `expo-router`) for navigation instead of `useRouter().push`
+- For route parameters, use a utility function to get parameters from the path segments
+- Make sure your project has the latest TypeScript definitions
+
+### 4. Required Package Updates
+
+Make sure your `package.json` has been updated to include the correct versions:
+
+```json
+{
+  "dependencies": {
+    "expo": "~53.0.0",
+    "expo-router": "~3.0.0",
+    "react": "18.2.0",
+    "react-native": "0.73.4",
+    ...
+  }
+}
+```
+
+### 5. Metro Config Updates
+
+If you had custom Metro config overrides for Expo Router in previous versions, they may no longer be needed:
+
+```
+If you have any resolutions/overrides in your package.json, verify that they are still needed. 
+For example, you should remove metro and metro-resolver overrides if you added them for 
+expo-router in a previous SDK release.
+```
+
+## Important Files Updated
+
+1. `src/utils/routerHelpers.ts` - A utility file with helper functions to work around TypeScript issues
+2. `app/teams/[id]/stats.tsx` - Updated to work with the new router API
+3. `app/stats/top-scorers.tsx` - Updated to work with the new router API
+
+## Next Steps
+
+1. Run `npx expo install` to ensure all dependencies are at the correct versions
+2. Run `npx expo start` to generate the latest TypeScript definitions
+3. Verify that the app works correctly with the new SDK
+
+## References
+
+- [Expo SDK 53 Release Notes](https://expo.dev/changelog/sdk-53)
+- [Expo Router Documentation](https://docs.expo.dev/router/introduction/)

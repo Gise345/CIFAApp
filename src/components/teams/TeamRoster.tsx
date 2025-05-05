@@ -11,8 +11,7 @@ import {
   FlatList
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
-
+import Feather from '@expo/vector-icons/Feather';
 import { useTeams } from '../../hooks/useTeams';
 import { Player } from '../../types/team';
 

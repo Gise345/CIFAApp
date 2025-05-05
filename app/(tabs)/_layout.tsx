@@ -1,8 +1,8 @@
 // CIFAMobileApp/app/(tabs)/_layout.tsx
-import { Tabs } from "expo-router";
+import { Tabs } from "expo-router/tabs"; // Updated import path
 import React from "react";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather, Ionicons  } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
@@ -31,28 +31,28 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <Feather name="home" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="stats"
         options={{
           title: "Stats",
-          tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <Feather name="bar-chart-2" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="clubs"
         options={{
           title: "Clubs",
-          tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <Feather name="shield" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="national"
         options={{
           title: "National",
-          tabBarIcon: ({ color }) => <Feather name="award" size={22} color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <Feather name="award" size={22} color={color} />,
         }}
       />
       
@@ -60,7 +60,7 @@ export default function TabLayout() {
         name="news"
         options={{
           title: "News",
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color }: { color: string }) => (
             <Feather name="file-text" size={22} color={color} />
           ),
         }}
@@ -69,7 +69,7 @@ export default function TabLayout() {
         name="more"
         options={{
           title: "More",
-          tabBarIcon: ({ color }) => <Feather name="menu" size={22} color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <Feather name="menu" size={22} color={color} />,
         }}
       />
     </Tabs>

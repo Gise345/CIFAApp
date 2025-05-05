@@ -8,8 +8,7 @@ import {
   ActivityIndicator,
   ScrollView
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-
+import Feather from '@expo/vector-icons/Feather';
 import { useTeams } from '../../hooks/useTeams';
 import { useLeagues } from '../../hooks/useLeagues';
 import Card from '../common/Card';
