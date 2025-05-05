@@ -12,17 +12,9 @@ export function useLocalSearchParams<T extends Record<string, string> = Record<s
     // In SDK 53, useLocalSearchParams might be unavailable or have a different API
     // This try/catch ensures we recover gracefully if the API changes
     
-    // First try the new API
-    const params = ExpoRouter.useSegments();
-    
-    // If segments is available, extract the last segment which should be our ID
-    if (params && params.length > 0) {
-      const lastSegment = params[params.length - 1];
-      return { id: lastSegment } as unknown as T;
-    }
-    
-    // Fall back to undefined as a last resort
-    return {} as T;
+    // @ts-ignore - SDK 53 type definitions are evolving
+    const params = ExpoRouter.useGlobalSearchParams();
+    return params as T;
   } catch (error) {
     console.warn('Error using SDK 53 router params:', error);
     return {} as T;
@@ -59,9 +51,15 @@ export function navigateSafely(path: string | { pathname: string, params?: Recor
     // Try alternate approach if first fails
     try {
       if (typeof path === 'string') {
-        window.location.href = path;
+        // @ts-ignore - fallback for web
+        if (typeof window !== 'undefined' && window.location) {
+          window.location.href = path;
+        }
       } else {
-        window.location.href = path.pathname;
+        // @ts-ignore - fallback for web
+        if (typeof window !== 'undefined' && window.location) {
+          window.location.href = path.pathname;
+        }
       }
     } catch (e) {
       console.error('Failed to navigate:', e);

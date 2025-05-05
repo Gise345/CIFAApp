@@ -6,26 +6,14 @@ export const router = ExpoRouter.router;
 
 // Type-safe wrapper for params with SDK 53 compatibility
 export function useParams<T extends Record<string, string> = Record<string, string>>(): T {
-  // Get dynamic segments from URL path
-  const segments = ExpoRouter.useSegments();
-  const dynamicSegment = segments ? segments[segments.length - 1] : '';
-  
   try {
     // Try to use the SDK 53 method first
     // @ts-ignore - SDK 53 type definitions are evolving
     const params = ExpoRouter.useGlobalSearchParams();
-    
-    // If we have an ID from the dynamic segment, add it to params
-    const result = {...params};
-    if (dynamicSegment && !result.id) {
-      result.id = dynamicSegment;
-    }
-    
-    return result as T;
+    return params as T;
   } catch (error) {
     console.warn('Error using params in SDK 53:', error);
-    // Return at least the ID from segments if available
-    return { id: dynamicSegment } as unknown as T;
+    return {} as T;
   }
 }
 

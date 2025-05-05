@@ -1,11 +1,9 @@
 // CIFAMobileApp/src/services/firebase/config.ts
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getAuth, initializeAuth } from 'firebase/auth';
-import { getReactNativePersistence } from 'firebase/auth/react-native';
-import { getFirestore, collection, getDocs, limit } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, collection, getDocs } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import Constants from 'expo-constants';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Get the Firebase configuration from Expo Constants
 const firebaseConfig = {
@@ -20,31 +18,19 @@ const firebaseConfig = {
 
 // Initialize Firebase only if it hasn't been initialized already
 let app;
-let auth;
 
 if (getApps().length === 0) {
   // No Firebase app initialized yet, so initialize a new one
   console.log('Initializing new Firebase app');
   app = initializeApp(firebaseConfig);
-  
-  // Initialize Auth with AsyncStorage persistence
-  try {
-    auth = initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage)
-    });
-  } catch (error) {
-    console.warn('Error initializing auth with persistence:', error);
-    // Fall back to default auth if persistence setup fails
-    auth = getAuth(app);
-  }
 } else {
   // Firebase app already initialized, get the existing one
   console.log('Reusing existing Firebase app');
   app = getApp();
-  auth = getAuth(app);
 }
 
-// Get Firestore and Storage instances
+// Get Auth, Firestore, and Storage instances
+const auth = getAuth(app);
 const firestore = getFirestore(app);
 const storage = getStorage(app);
 
