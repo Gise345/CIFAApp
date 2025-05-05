@@ -110,8 +110,8 @@ const SimpleTeamList = ({ teams, onViewAll }: { teams: Team[], onViewAll?: () =>
     return null;
   }
 
-  // Limit to 5 teams
-  const displayTeams = teams.slice(0, 5);
+  // Limit to 11 teams
+  const displayTeams = teams.slice(0, 11);
 
   return (
     <ScrollView
@@ -219,7 +219,7 @@ export default function ClubsScreen() {
         // Safely proceed with typed firestore instance
         const fetchTeams = async (firestoreInstance: Firestore) => {
           try {
-            console.log('Fetching men\'s teams...');
+            
             // Mens teams
             const mensQuery = query(
               collection(firestoreInstance, 'teams'),
@@ -232,8 +232,7 @@ export default function ClubsScreen() {
               id: doc.id,
               ...doc.data()
             } as Team));
-            
-            console.log(`Found ${mensData.length} men's teams`);
+          
             
             // If no data from Firestore, use mock data
             if (mensData.length === 0) {
@@ -242,8 +241,6 @@ export default function ClubsScreen() {
               setMensTeams(mensData);
             }
             
-            // Womens teams
-            console.log('Fetching women\'s teams...');
             try {
               const womensQuery = query(
                 collection(firestoreInstance, 'teams'),
@@ -257,14 +254,13 @@ export default function ClubsScreen() {
                 ...doc.data()
               } as Team));
               
-              console.log(`Found ${womensData.length} women's teams`);
+
               setWomensTeams(womensData);
             } catch (e) {
               console.error('Error fetching women\'s teams:', e);
             }
             
             // Youth teams
-            console.log('Fetching youth teams...');
             try {
               const youthQuery = query(
                 collection(firestoreInstance, 'teams'),
@@ -278,7 +274,6 @@ export default function ClubsScreen() {
                 ...doc.data()
               } as Team));
               
-              console.log(`Found ${youthData.length} youth teams`);
               setYouthTeams(youthData);
             } catch (e) {
               console.error('Error fetching youth teams:', e);

@@ -1,0 +1,229 @@
+# Firestore Document Duplicator
+
+This document explains how to use the document duplication features in the CIFA Mobile App. These tools allow you to easily create copies of Firestore documents within your database, which can be useful for many purposes like:
+
+- Creating templates from existing documents
+- Testing with duplicate data
+- Migrating data between collections
+- Creating backups of important documents
+
+## Methods Available
+
+There are three ways to duplicate documents:
+
+1. **Admin Panel UI**: Use the visual interface in the app under Admin Tools
+2. **JavaScript API**: Use the provided functions in your code
+3. **Command Line Interface**: Run the dedicated script for bulk operations
+
+## 1. Using the Admin Panel UI
+
+The app includes an intuitive admin panel for document duplication:
+
+1. Log in with an admin account
+2. Navigate to `Admin > Tools`
+3. Use the Document Duplicator card to:
+   - Select a source collection and document
+   - Specify the destination collection
+   - Optionally provide a custom ID for the new document
+   - Optionally modify fields in the new document (using JSON format)
+
+The UI provides real-time feedback and error messages.
+
+## 2. Using the JavaScript API
+
+If you need to integrate document duplication into your own components, you can use the provided utilities:
+
+### Direct Function Usage
+
+```typescript
+import { duplicateDocument, duplicateMultipleDocuments } from '../utils/firestoreDuplicator';
+
+// Duplicate a single document
+const newId = await duplicateDocument(
+  'teams/team123',       // Source path
+  'teams',               // Destination collection
+  'customId',            // Optional custom ID (or undefined for auto-generated)
+  { name: 'New Name' }   // Optional fields to modify
+);
+
+// Duplicate multiple documents matching a query
+const newIds = await duplicateMultipleDocuments(
+  'teams',              // Source collection
+  'archivedTeams',      // Destination collection
+  [['division', '==', "Men's Premier League"]], // Optional query conditions
+  { archived: true }    // Optional fields to modify in all docs
+);
+```
+
+### Using the Hook
+
+For React components, you can use the custom hook:
+
+```tsx
+import { useDocumentDuplicator } from '../../hooks/useDocumentDuplicator';
+
+function YourComponent() {
+  const { 
+    duplicateDoc, 
+    duplicateMultiple, 
+    duplicateBatch,
+    loading, 
+    lastResult 
+  } = useDocumentDuplicator();
+
+  const handleDuplicate = async () => {
+    const result = await duplicateDoc('teams/team123', 'teams');
+    
+    if (result.success) {
+      console.log(`Document duplicated with ID: ${result.documentId}`);
+    } else {
+      console.error(`Error: ${result.error}`);
+    }
+  };
+
+  return (
+    <View>
+      <Button 
+        title="Duplicate" 
+        onPress={handleDuplicate} 
+        loading={loading} 
+      />
+      {lastResult?.success && (
+        <Text>Success! New ID: {lastResult.documentId}</Text>
+      )}
+    </View>
+  );
+}
+```
+
+## 3. Using the Command Line Interface
+
+For bulk operations or administrative tasks, you can use the CLI script:
+
+```bash
+# Make sure you have your .env file with Firebase credentials
+npm run duplicate-docs
+```
+
+The CLI tool provides an interactive prompt to:
+1. Choose between single or multiple document duplication
+2. Enter source and destination details
+3. Apply filters for selecting multiple documents
+4. Modify fields in the duplicated documents
+
+EXAMPLE
+- teams/345-mpl
+- teams
+- scholars-wpl
+- {"name": "Scholars Sports Club (Women)", "shortName": "Scholars SC (WPL)"}
+
+
+
+This is especially useful for:
+- Batch operations
+- Data migration
+- Creating test datasets
+- Backing up collections
+
+Prerequisites
+- Node.js installed on your system
+- Firebase project configured with the CIFA Mobile App
+- Admin access to the Firebase project
+
+
+Running the Document Duplicator
+- Open your terminal and navigate to the CIFA Mobile App project directory:
+
+bash
+- cd CifaMobileApplication/cifa-mobile-app
+- Run the duplicator script using npm:
+
+bash
+- npm run duplicate-docs
+- The script will connect to Firebase and present a menu:
+
+text
+===== Firestore Document Duplicator =====
+1. Duplicate a single document
+2. Duplicate multiple documents
+3. Exit
+- Duplicating a Single Document
+- Select option 1 from the menu
+
+- Enter the source document path in the format collection/documentId (e.g., teams/academy-sc)
+
+- Enter a custom ID for the new document, or leave blank for auto-generated ID
+
+- Enter fields to modify in JSON format, or leave blank to create an exact copy
+
+- Example JSON for field modifications:
+
+json
+{
+  "name": "Elite SC",
+  "shortName": "ELT",
+  "division": "Premier League"
+}
+
+- Duplicating Multiple Documents
+- Select option 2 from the menu
+
+- Enter the source collection path (e.g., players)
+
+- Enter a query filter in JSON format (optional)
+
+- Enter fields to modify in JSON format (optional)
+
+Example query filter:
+
+json
+{
+  "field": "division",
+  "operator": "==",
+  "value": "First Division"
+}
+
+
+## Error Handling
+
+All duplication methods include robust error handling:
+
+- Input validation before attempting operations
+- Detailed error messages
+- Transaction-based operations (when possible)
+- Logging of operations for auditing
+
+## Security Considerations
+
+Document duplication respects Firestore security rules:
+- Users must have read access to the source documents
+- Users must have write access to the destination collection
+- Admin privileges are required for the Admin UI and CLI tools
+
+## Best Practices
+
+1. **Test on Development Environment First**: Always test duplication operations on non-production data first.
+
+2. **Check IDs Carefully**: Be mindful when specifying custom IDs to avoid overwriting existing documents.
+
+3. **Monitor Usage**: Document duplication can increase your Firestore read/write operations.
+
+4. **Consider Data Volume**: When duplicating large documents or many documents at once, be aware of your Firestore usage limits.
+
+5. **Clean Up Test Data**: Remember to remove test duplicates when they're no longer needed.
+
+## Troubleshooting
+
+If you encounter issues:
+
+1. **Connection Problems**: Ensure you have a stable internet connection.
+
+2. **Permission Errors**: Verify your account has the necessary permissions.
+
+3. **Missing Documents**: Double-check that the source document exists.
+
+4. **Invalid JSON**: When modifying fields, ensure your JSON format is valid.
+
+5. **Rate Limiting**: If duplicating many documents, you might hit Firestore rate limits.
+
+For additional help, contact the development team at contact@invovibetechcayman.com.
