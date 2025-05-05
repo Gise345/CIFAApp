@@ -30,6 +30,8 @@ export default function ClubsScreen() {
   const [loading, setLoading] = useState(true);
   const [teams, setTeams] = useState<Team[]>([]);
 
+  
+
   // Mock data for teams - in production, this would come from your API or Firebase
   useEffect(() => {
     // Simulate loading from API
