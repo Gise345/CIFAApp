@@ -3,7 +3,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { 
   getTeams, 
   getTeamById, 
-  getTeamPlayers
+  getTeamPlayers,
+  getTeamWithRelatedData
 } from '../services/firebase/teams';
 import { 
   getTeamFixtures, 
@@ -18,6 +19,8 @@ interface TeamsState {
   teamFixtures: LeagueFixture[];
   loading: boolean;
   error: string | null;
+  selectedLeague: any | null;
+  teamStanding: any | null;
 }
 
 
@@ -27,6 +30,8 @@ export const useTeams = () => {
     selectedTeam: null,
     teamPlayers: [],
     teamFixtures: [],
+    selectedLeague: null,  // Add this
+    teamStanding: null,    // Add this
     loading: false,
     error: null
   });
@@ -92,26 +97,27 @@ export const useTeams = () => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       
-      // Fetch team details, players, and fixtures in parallel
-      const [team, players, fixtures] = await Promise.all([
-        getTeamById(teamId),
-        getTeamPlayers(teamId),
-        getTeamFixtures(teamId)
-      ]);
+      const result = await getTeamWithRelatedData(teamId);
+      
+      if (!result) {
+        throw new Error('Failed to load team data');
+      }
       
       setState(prev => ({
         ...prev,
-        selectedTeam: team,
-        teamPlayers: players,
-        teamFixtures: fixtures,
+        selectedTeam: result.team,
+        teamPlayers: result.players,
+        teamFixtures: result.fixtures,
+        selectedLeague: result.league,
+        teamStanding: result.standings,
         loading: false
       }));
       
-      return { team, players, fixtures };
+      return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load team data';
       setState(prev => ({ ...prev, error: errorMessage, loading: false }));
-      return { team: null, players: [], fixtures: [] };
+      return null;
     }
   }, []);
 
@@ -145,6 +151,8 @@ export const useTeams = () => {
       selectedTeam: null,
       teamPlayers: [],
       teamFixtures: [],
+      selectedLeague: null,
+      teamStanding: null,
       loading: false,
       error: null
     });

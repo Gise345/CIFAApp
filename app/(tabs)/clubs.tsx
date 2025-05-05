@@ -203,6 +203,7 @@ export default function ClubsScreen() {
   const [mensTeams, setMensTeams] = useState<Team[]>([]);
   const [womensTeams, setWomensTeams] = useState<Team[]>([]);
   const [youthTeams, setYouthTeams] = useState<Team[]>([]);
+  const [firstDivisionTeams, setFirstDivisionTeams] = useState<Team[]>([]);
 
   // Use setTimeout to avoid blocking the main thread
   useEffect(() => {
@@ -278,6 +279,26 @@ export default function ClubsScreen() {
             } catch (e) {
               console.error('Error fetching youth teams:', e);
             }
+
+            // First Division teams
+            try {
+              const firstDivisionQuery = query(
+                collection(firestoreInstance, 'teams'),
+                where('type', '==', 'club'),
+                where('division', '==', "CIFA Men's First Division")
+              );
+              
+              const firstDivisionSnapshot = await getDocs(firstDivisionQuery);
+              const firstDivisonData = firstDivisionSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              } as Team));
+              
+              setFirstDivisionTeams(firstDivisonData);
+            } catch (e) {
+              console.error('Error fetching first division teams:', e);
+            }
+            
             
             setLoading(false);
           } catch (err) {
@@ -371,6 +392,17 @@ export default function ClubsScreen() {
                   <SimpleTeamList 
                     teams={youthTeams} 
                     onViewAll={handleViewAllYouthTeams} 
+                  />
+                </View>
+              )}
+
+              {/* First Division Teams Section */}
+              {firstDivisionTeams.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Men's First Division</Text>
+                  <SimpleTeamList 
+                    teams={firstDivisionTeams} 
+                    onViewAll={() => router.push("/teams?type=club&division=CIFA Men's First Division")}
                   />
                 </View>
               )}

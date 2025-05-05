@@ -217,6 +217,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111827',
   },
+  // Add to the existing styles
+leagueName: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  color: '#111827',
+  marginBottom: 4,
+},
+leagueSeason: {
+  fontSize: 14,
+  color: '#6b7280',
+  marginBottom: 12,
+},
+standingInfo: {
+  backgroundColor: '#f3f4f6',
+  padding: 12,
+  borderRadius: 8,
+  marginTop: 8,
+},
+standingPosition: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  color: '#111827',
+  marginBottom: 4,
+},
+standingStats: {
+  fontSize: 14,
+  color: '#4b5563',
+  marginBottom: 4,
+},
+standingPoints: {
+  fontSize: 16,
+  fontWeight: '500',
+  color: '#111827',
+},
 });
 
 export default TeamDetail;

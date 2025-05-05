@@ -17,6 +17,7 @@ import {
 import { ref, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage';
 import { firestore as firestoreInstance, storage as storageInstance } from './config';
 import { Team, Player } from '../../types/team';
+import { getTeamFixtures as getFixturesForTeam } from '../../services/firebase/leagues';
 
 // Use Firestore with proper typing
 const getFirestore = (): Firestore => {
@@ -190,4 +191,126 @@ export const getPlayerById = async (playerId: string): Promise<Player | null> =>
   }
 };
 
+// Add this function to src/services/firebase/teams.ts
+
+/**
+ * Get all data related to a team including league, standings, players, and fixtures
+ */
+export const getTeamWithRelatedData = async (teamId: string) => {
+  try {
+    console.log(`Fetching all data for team ID: ${teamId}`);
+    const firestore = getFirestore();
+    
+    // First get the team
+    const team = await getTeamById(teamId);
+    
+    if (!team) {
+      console.log(`Team with ID ${teamId} not found`);
+      return null;
+    }
+    
+    // Get related data in parallel
+    const [players, fixtures] = await Promise.all([
+      getTeamPlayers(teamId),
+      getFixturesForTeam(teamId)
+    ]);
+    
+    // Get league if there's a leagueId
+    let league = null;
+    if (team.leagueId) {
+      try {
+        const leagueDoc = await getDoc(doc(firestore, 'leagues', team.leagueId));
+        if (leagueDoc.exists()) {
+          league = {
+            id: leagueDoc.id,
+            ...leagueDoc.data()
+          };
+        }
+      } catch (e) {
+        console.warn(`Error fetching league for team ${teamId}:`, e);
+      }
+    }
+    
+    // Get team standings if we have a league
+    let standings = null;
+    if (team.leagueId) {
+      try {
+        const standingsQuery = query(
+          collection(firestore, 'leagueStandings'),
+          where('teamId', '==', teamId),
+          where('leagueId', '==', team.leagueId)
+        );
+        
+        const standingsSnapshot = await getDocs(standingsQuery);
+        if (!standingsSnapshot.empty) {
+          standings = {
+            id: standingsSnapshot.docs[0].id,
+            ...standingsSnapshot.docs[0].data()
+          };
+        }
+      } catch (e) {
+        console.warn(`Error fetching standings for team ${teamId}:`, e);
+      }
+    }
+    
+    return {
+      team,
+      players,
+      league,
+      fixtures,
+      standings
+    };
+  } catch (error) {
+    console.error(`Error fetching team data for ${teamId}:`, error);
+    throw error;
+  }
+};
+
+export const getTeamFixtures = async (teamId: string, limit?: number) => {
+  try {
+    console.log(`Fetching fixtures for team ID: ${teamId}`);
+    const firestore = getFirestore();
+    
+    const fixturesQuery = query(
+      collection(firestore, 'matches'),
+      where('teams', 'array-contains', teamId)
+    );
+    
+    const fixturesSnapshot = await getDocs(fixturesQuery);
+    
+    const fixtures = fixturesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    return fixtures;
+  } catch (error) {
+    console.error(`Error fetching fixtures for team ${teamId}:`, error);
+    return [];
+  }
+};
+
+/**
+ * Get a league by ID
+ */
+export const getLeagueById = async (leagueId: string) => {
+  try {
+    console.log(`Fetching league with ID: ${leagueId}`);
+    const firestore = getFirestore();
+    const leagueDoc = await getDoc(doc(firestore, 'leagues', leagueId));
+    
+    if (!leagueDoc.exists()) {
+      console.log(`League with ID ${leagueId} not found`);
+      return null;
+    }
+    
+    return {
+      id: leagueDoc.id,
+      ...leagueDoc.data()
+    };
+  } catch (error) {
+    console.error('Error fetching league:', error);
+    throw error;
+  }
+};
 // Export additional functions as needed for your app

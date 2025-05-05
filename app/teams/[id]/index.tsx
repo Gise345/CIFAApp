@@ -39,10 +39,11 @@ export default function TeamOverviewScreen() {
     selectedTeam, 
     teamPlayers, 
     teamFixtures, 
+    selectedLeague,
+    teamStanding,
     loading, 
     error, 
-    loadTeamData, 
-    getFixturesByStatus 
+    loadTeamData 
   } = useTeams();
   
   const [refreshing, setRefreshing] = useState(false);
@@ -53,7 +54,7 @@ export default function TeamOverviewScreen() {
     if (teamId) {
       loadTeamData(teamId);
     }
-  }, [teamId]);
+  }, [teamId, loadTeamData]);
   
   // Handle pull-to-refresh
   const handleRefresh = async () => {
@@ -63,6 +64,73 @@ export default function TeamOverviewScreen() {
     }
     setRefreshing(false);
   };
+  
+  // Helper function to get fixtures by status
+const getFixturesByStatus = (fixtures: LeagueFixture[] = []) => {
+  if (!fixtures || fixtures.length === 0) {
+    return { liveFixtures: [], upcomingFixtures: [], pastFixtures: [] };
+  }
+  
+  const now = new Date();
+  
+  // Helper function to safely convert any date format to a JavaScript Date
+  const convertToDate = (dateValue: any): Date => {
+    // For Firestore Timestamp objects
+    if (dateValue && typeof dateValue.toDate === 'function') {
+      return dateValue.toDate();
+    }
+    
+    // For standard Date objects
+    if (dateValue instanceof Date) {
+      return dateValue;
+    }
+    
+    // For string or number date representations
+    try {
+      return new Date(dateValue);
+    } catch (e) {
+      // Fallback to current date if parsing fails
+      console.warn('Invalid date format:', dateValue);
+      return new Date();
+    }
+  };
+  
+  // Find live fixtures
+  const liveFixtures = fixtures.filter(fixture => 
+    fixture.status === 'live'
+  );
+  
+  // Find upcoming fixtures
+  const upcomingFixtures = fixtures.filter(fixture => {
+    if (fixture.status !== 'scheduled') return false;
+    
+    // Convert fixture date to JavaScript Date
+    const fixtureDate = convertToDate(fixture.date);
+    return fixtureDate > now;
+  }).sort((a, b) => {
+    // Sort by date ascending
+    const dateA = convertToDate(a.date);
+    const dateB = convertToDate(b.date);
+    return dateA.getTime() - dateB.getTime();
+  });
+  
+  // Find past fixtures
+  const pastFixtures = fixtures.filter(fixture => {
+    if (fixture.status === 'completed') return true;
+    if (fixture.status !== 'scheduled') return false;
+    
+    // Convert fixture date to JavaScript Date
+    const fixtureDate = convertToDate(fixture.date);
+    return fixtureDate < now;
+  }).sort((a, b) => {
+    // Sort by date descending (most recent first)
+    const dateA = convertToDate(a.date);
+    const dateB = convertToDate(b.date);
+    return dateB.getTime() - dateA.getTime();
+  });
+  
+  return { liveFixtures, upcomingFixtures, pastFixtures };
+};
   
   // Get next fixture and last result
   const { liveFixtures, upcomingFixtures, pastFixtures } = getFixturesByStatus(teamFixtures);
@@ -212,6 +280,34 @@ export default function TeamOverviewScreen() {
               <Text style={styles.statLabel}>Founded</Text>
             </View>
           </View>
+          
+          {/* League Info Section */}
+          {selectedLeague && (
+            <Card style={styles.infoCard}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>LEAGUE</Text>
+              </View>
+              
+              <View style={styles.infoContent}>
+                <Text style={styles.leagueName}>{selectedLeague.name}</Text>
+                <Text style={styles.leagueSeason}>Season: {selectedLeague.season || '2024-25'}</Text>
+                
+                {teamStanding && (
+                  <View style={styles.standingInfo}>
+                    <Text style={styles.standingPosition}>
+                      Position: {teamStanding.position || '-'}
+                    </Text>
+                    <Text style={styles.standingStats}>
+                      {teamStanding.played || 0} Played | {teamStanding.won || 0}W - {teamStanding.drawn || 0}D - {teamStanding.lost || 0}L
+                    </Text>
+                    <Text style={styles.standingPoints}>
+                      Points: {teamStanding.points || 0}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </Card>
+          )}
           
           {/* About Section */}
           <Card style={styles.infoCard}>
@@ -644,5 +740,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2563eb',
     fontWeight: '500',
+  },
+  // League section styles
+  leagueName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  leagueSeason: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 12,
+  },
+  standingInfo: {
+    backgroundColor: '#f3f4f6',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  standingPosition: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  standingStats: {
+    fontSize: 14,
+    color: '#4b5563',
+    marginBottom: 4,
+  },
+  standingPoints: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827',
   },
 });
