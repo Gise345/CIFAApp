@@ -1,4 +1,3 @@
-// CIFAMobileApp/src/components/teams/TeamComparison.tsx
 import React, { useState, useEffect } from 'react';
 import { 
   View,
@@ -8,9 +7,10 @@ import {
   ActivityIndicator,
   ScrollView
 } from 'react-native';
-import Feather from '@expo/vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
+
 import { useTeams } from '../../hooks/useTeams';
-import { useLeagues } from '../../hooks/useLeagues';
+import { useStats } from '../../hooks/useStats';
 import Card from '../common/Card';
 import TeamLogo from '../common/TeamLogo';
 import { Team } from '../../types/team';
@@ -20,33 +20,23 @@ interface TeamComparisonProps {
   teamBId?: string; // Optional - if not provided, show team selector
 }
 
-// Interface for comparison stats
-interface ComparisonStat {
-  label: string;
-  teamA: number | string;
-  teamB: number | string;
-  winner?: 'A' | 'B' | 'tie';
-  higher: 'better' | 'worse'; // Whether higher number is better or worse
-}
-
 const TeamComparison: React.FC<TeamComparisonProps> = ({ teamAId, teamBId: initialTeamBId }) => {
-  const { fetchTeamById, loadTeamData } = useTeams();
-  const { fetchLeagueStandings } = useLeagues();
+  const { fetchTeamById } = useTeams();
+  const { fetchTeamComparison, loading, error } = useStats();
   
   const [teamA, setTeamA] = useState<Team | null>(null);
   const [teamB, setTeamB] = useState<Team | null>(null);
   const [teamBId, setTeamBId] = useState<string | undefined>(initialTeamBId);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [comparisonStats, setComparisonStats] = useState<ComparisonStat[]>([]);
+  const [comparison, setComparison] = useState<any>(null);
   const [teamOptions, setTeamOptions] = useState<Team[]>([]);
   const [showTeamSelector, setShowTeamSelector] = useState(!initialTeamBId);
+  const [loadingTeams, setLoadingTeams] = useState(false);
   
   // Load teams data
   useEffect(() => {
     const loadTeams = async () => {
       try {
-        setLoading(true);
+        setLoadingTeams(true);
         
         // Load team A
         const teamAData = await fetchTeamById(teamAId);
@@ -56,120 +46,33 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamAId, teamBId: initi
         if (teamBId) {
           const teamBData = await fetchTeamById(teamBId);
           setTeamB(teamBData);
-        }
-        
-        // Load possible teams to compare with
-        if (teamAData && teamAData.leagueId) {
-          const standings = await fetchLeagueStandings(teamAData.leagueId);
-          const leagueTeams = await Promise.all(
-            standings.map(standing => fetchTeamById(standing.teamId))
-          );
           
-          // Filter out the current team and null values
-          setTeamOptions(
-            leagueTeams.filter(team => team && team.id !== teamAId) as Team[]
-          );
+          // Fetch comparison data
+          const comparisonData = await fetchTeamComparison(teamAId, teamBId);
+          setComparison(comparisonData);
         }
         
-        // Generate comparison stats if both teams are loaded
-        if (teamAData && teamBId) {
-          generateComparisonStats(teamAData, await fetchTeamById(teamBId) as Team);
-        }
+       
         
-        setLoading(false);
+        setLoadingTeams(false);
       } catch (err) {
         console.error('Error loading teams for comparison:', err);
-        setError('Failed to load team data for comparison');
-        setLoading(false);
+        setLoadingTeams(false);
       }
     };
     
     loadTeams();
   }, [teamAId, teamBId]);
   
-  // Generate comparison stats between two teams
-  const generateComparisonStats = (teamA: Team, teamB: Team) => {
-    if (!teamA || !teamB) return;
-    
-    // Mock data - in a real app, these would come from a database
-    const mockStats: ComparisonStat[] = [
-      {
-        label: 'League Position',
-        teamA: '1st',
-        teamB: '3rd',
-        winner: 'A',
-        higher: 'worse'
-      },
-      {
-        label: 'Points',
-        teamA: 28,
-        teamB: 20,
-        winner: 'A',
-        higher: 'better'
-      },
-      {
-        label: 'Matches Played',
-        teamA: 12,
-        teamB: 12,
-        winner: 'tie',
-        higher: 'better'
-      },
-      {
-        label: 'Wins',
-        teamA: 9,
-        teamB: 6,
-        winner: 'A',
-        higher: 'better'
-      },
-      {
-        label: 'Draws',
-        teamA: 1,
-        teamB: 2,
-        winner: 'B',
-        higher: 'better'
-      },
-      {
-        label: 'Losses',
-        teamA: 2,
-        teamB: 4,
-        winner: 'A',
-        higher: 'worse'
-      },
-      {
-        label: 'Goals Scored',
-        teamA: 28,
-        teamB: 18,
-        winner: 'A',
-        higher: 'better'
-      },
-      {
-        label: 'Goals Conceded',
-        teamA: 10,
-        teamB: 15,
-        winner: 'A',
-        higher: 'worse'
-      },
-      {
-        label: 'Clean Sheets',
-        teamA: 5,
-        teamB: 2,
-        winner: 'A',
-        higher: 'better'
-      }
-    ];
-    
-    setComparisonStats(mockStats);
-  };
-  
   // Select a team to compare with
-  const selectTeamB = (team: Team) => {
-    setTeamBId(team.id);
+  const selectTeamB = async (team: Team) => {
     setTeamB(team);
+    setTeamBId(team.id);
     setShowTeamSelector(false);
     
-    if (teamA) {
-      generateComparisonStats(teamA, team);
-    }
+    // Fetch comparison data
+    const comparisonData = await fetchTeamComparison(teamAId, team.id);
+    setComparison(comparisonData);
   };
   
   // Toggle team selector
@@ -178,7 +81,7 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamAId, teamBId: initi
   };
   
   // Render loading state
-  if (loading && !teamA) {
+  if ((loading || loadingTeams) && !teamA) {
     return (
       <Card>
         <View style={styles.loadingContainer}>
@@ -200,7 +103,7 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamAId, teamBId: initi
       </Card>
     );
   }
-  
+
   return (
     <Card style={styles.card}>
       {/* Header */}
@@ -279,14 +182,39 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamAId, teamBId: initi
       )}
       
       {/* Comparison Stats */}
-      {!showTeamSelector && teamB && (
+      {!showTeamSelector && teamB && comparison && (
         <View style={styles.statsContainer}>
-          {comparisonStats.map((stat, index) => (
+          {/* Display Head-to-Head info at the top */}
+          {comparison.headToHead.matches > 0 && (
+            <View style={styles.headToHeadContainer}>
+              <Text style={styles.h2hTitle}>Head-to-Head</Text>
+              <View style={styles.h2hStats}>
+                <View style={styles.h2hStat}>
+                  <Text style={styles.h2hValue}>{comparison.headToHead.teamAWins}</Text>
+                  <Text style={styles.h2hLabel}>Wins</Text>
+                </View>
+                <View style={styles.h2hStat}>
+                  <Text style={styles.h2hValue}>{comparison.headToHead.draws}</Text>
+                  <Text style={styles.h2hLabel}>Draws</Text>
+                </View>
+                <View style={styles.h2hStat}>
+                  <Text style={styles.h2hValue}>{comparison.headToHead.teamBWins}</Text>
+                  <Text style={styles.h2hLabel}>Wins</Text>
+                </View>
+              </View>
+              <Text style={styles.h2hMatches}>
+                {comparison.headToHead.matches} matches played
+              </Text>
+            </View>
+          )}
+          
+          {/* Display comparison stats */}
+          {comparison.comparisonStats.map((stat: any, index: number) => (
             <View 
               key={stat.label} 
               style={[
                 styles.statRow,
-                index < comparisonStats.length - 1 && styles.statRowBorder
+                index < comparison.comparisonStats.length - 1 && styles.statRowBorder
               ]}
             >
               {/* Team A Value */}
@@ -303,24 +231,30 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamAId, teamBId: initi
               <View style={styles.statLabelContainer}>
                 <Text style={styles.statLabel}>{stat.label}</Text>
                 <View style={styles.comparisonBar}>
-                  <View 
-                    style={[
-                      styles.barA,
-                      { 
-                        flex: typeof stat.teamA === 'number' ? stat.teamA : 1,
-                        backgroundColor: teamA?.colorPrimary || '#2563eb'
-                      }
-                    ]}
-                  />
-                  <View 
-                    style={[
-                      styles.barB,
-                      { 
-                        flex: typeof stat.teamB === 'number' ? stat.teamB : 1,
-                        backgroundColor: teamB?.colorPrimary || '#ef4444'
-                      }
-                    ]}
-                  />
+                  {typeof stat.teamA === 'number' && typeof stat.teamB === 'number' ? (
+                    <>
+                      <View 
+                        style={[
+                          styles.barA,
+                          { 
+                            flex: stat.teamA || 1,
+                            backgroundColor: teamA?.colorPrimary || '#2563eb'
+                          }
+                        ]}
+                      />
+                      <View 
+                        style={[
+                          styles.barB,
+                          { 
+                            flex: stat.teamB || 1,
+                            backgroundColor: teamB?.colorPrimary || '#ef4444'
+                          }
+                        ]}
+                      />
+                    </>
+                  ) : (
+                    <View style={styles.noBarData} />
+                  )}
                 </View>
               </View>
               
@@ -335,6 +269,14 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamAId, teamBId: initi
               </Text>
             </View>
           ))}
+        </View>
+      )}
+      
+      {/* If team B is selected but no comparison data */}
+      {!showTeamSelector && teamB && !comparison && (
+        <View style={styles.emptyContainer}>
+          <Feather name="bar-chart-2" size={24} color="#9ca3af" />
+          <Text style={styles.emptyText}>No comparison data available</Text>
         </View>
       )}
     </Card>
@@ -466,6 +408,42 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
   },
+  headToHeadContainer: {
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  h2hTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  h2hStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  h2hStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  h2hValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  h2hLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  h2hMatches: {
+    fontSize: 12,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
   statRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -508,6 +486,22 @@ const styles = StyleSheet.create({
   },
   barB: {
     height: '100%',
+  },
+  noBarData: {
+    height: '100%',
+    backgroundColor: '#e5e7eb',
+    width: '100%',
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
   },
 });
 

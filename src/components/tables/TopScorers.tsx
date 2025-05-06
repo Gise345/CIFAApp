@@ -1,66 +1,90 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import Card from '../common/Card';
 import Section from '../common/Section';
-
-interface Player {
-  id: string;
-  name: string;
-  teamId: string;
-  teamColor: string;
-  goals: number;
-  position: number;
-}
+import { useStats } from '../../hooks/useStats';
+import { TopScorer } from '../../services/firebase/stats';
+import { Feather } from '@expo/vector-icons';
 
 interface TopScorersProps {
   categoryId: string;
+  limit?: number;
   onViewAll?: () => void;
 }
 
-const TopScorers: React.FC<TopScorersProps> = ({ categoryId, onViewAll }) => {
-  // This would come from Firebase in production based on categoryId
-  const players: Player[] = [
-    {
-      id: 'player1',
-      name: 'Mark Ebanks',
-      teamId: 'elite',
-      teamColor: '#16a34a', // Green
-      goals: 12,
-      position: 1,
-    },
-    {
-      id: 'player2',
-      name: 'Wesley Robinson',
-      teamId: 'scholars',
-      teamColor: '#1e40af', // Blue
-      goals: 9,
-      position: 2,
-    },
-    {
-      id: 'player3',
-      name: 'Theron Wood',
-      teamId: 'elite',
-      teamColor: '#16a34a', // Green
-      goals: 8,
-      position: 3,
-    },
-    {
-      id: 'player4',
-      name: 'Christopher Ebanks',
-      teamId: 'future',
-      teamColor: '#ca8a04', // Yellow/gold
-      goals: 7,
-      position: 4,
-    },
-    {
-      id: 'player5',
-      name: 'Jonah Ebanks',
-      teamId: 'bodden',
-      teamColor: '#7e22ce', // Purple
-      goals: 6,
-      position: 5,
-    },
-  ];
+const TopScorers: React.FC<TopScorersProps> = ({ 
+  categoryId, 
+  limit = 5,
+  onViewAll 
+}) => {
+  const { fetchTopScorers, loading, error } = useStats();
+  const [scorers, setScorers] = useState<TopScorer[]>([]);
+
+  useEffect(() => {
+    const loadTopScorers = async () => {
+      const data = await fetchTopScorers(categoryId, limit);
+      setScorers(data);
+    };
+    
+    loadTopScorers();
+  }, [categoryId, limit, fetchTopScorers]);
+
+  // Loading state
+  if (loading && scorers.length === 0) {
+    return (
+      <Section 
+        title="TOP SCORERS" 
+        viewAllText="Full List" 
+        onViewAll={onViewAll}
+        style={styles.section}
+      >
+        <Card style={styles.card}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color="#2563eb" />
+            <Text style={styles.loadingText}>Loading top scorers...</Text>
+          </View>
+        </Card>
+      </Section>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Section 
+        title="TOP SCORERS" 
+        viewAllText="Full List" 
+        onViewAll={onViewAll}
+        style={styles.section}
+      >
+        <Card style={styles.card}>
+          <View style={styles.errorContainer}>
+            <Feather name="alert-circle" size={24} color="#ef4444" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        </Card>
+      </Section>
+    );
+  }
+
+  // Empty state
+  if (scorers.length === 0) {
+    return (
+      <Section 
+        title="TOP SCORERS" 
+        viewAllText="Full List" 
+        onViewAll={onViewAll}
+        style={styles.section}
+      >
+        <Card style={styles.card}>
+          <View style={styles.emptyContainer}>
+            <Feather name="users" size={24} color="#9ca3af" />
+            <Text style={styles.emptyText}>No top scorers data available</Text>
+          </View>
+        </Card>
+      </Section>
+    );
+  }
 
   return (
     <Section 
@@ -79,12 +103,12 @@ const TopScorers: React.FC<TopScorersProps> = ({ categoryId, onViewAll }) => {
         </View>
         
         {/* Player Rows */}
-        {players.map((player, index) => (
+        {scorers.map((player) => (
           <View 
             key={player.id} 
             style={[
               styles.row, 
-              index < players.length - 1 && styles.borderBottom
+              player.position < scorers.length && styles.borderBottom
             ]}
           >
             <Text style={[styles.text, styles.positionColumn, styles.positionText]}>
@@ -93,14 +117,14 @@ const TopScorers: React.FC<TopScorersProps> = ({ categoryId, onViewAll }) => {
             
             <View style={[styles.playerColumn, styles.playerInfo]}>
               <View style={styles.playerPhoto} />
-              <Text style={styles.playerName}>{player.name}</Text>
+              <Text style={styles.playerName}>{player.playerName}</Text>
             </View>
             
             <View style={[styles.teamColumn, styles.teamSection]}>
               <View 
                 style={[
                   styles.teamCircle, 
-                  { backgroundColor: player.teamColor }
+                  { backgroundColor: player.teamColor || '#6b7280' }
                 ]} 
               />
             </View>
@@ -192,6 +216,38 @@ const styles = StyleSheet.create({
   },
   goalsText: {
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  errorContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#ef4444',
+    textAlign: 'center',
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#6b7280',
+    textAlign: 'center',
   },
 });
 
