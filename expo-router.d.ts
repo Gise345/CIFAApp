@@ -12,4 +12,8 @@ declare module 'expo-router' {
       replace: (href: string) => void;
       navigate: (href: string) => void;
     };
+
+  export function useSegments(): Record<string, string | string[]> {
+    throw new Error('Function not implemented.');
+  }
   }

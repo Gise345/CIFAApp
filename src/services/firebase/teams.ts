@@ -15,9 +15,11 @@ import {
   DocumentData
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage';
-import { firestore as firestoreInstance, storage as storageInstance } from './config';
+import { firestore, firestore as firestoreInstance, storage as storageInstance } from './config';
 import { Team, Player } from '../../types/team';
 import { getTeamFixtures as getFixturesForTeam } from '../../services/firebase/leagues';
+import { uploadTeamLogo } from './storage';
+
 
 // Use Firestore with proper typing
 const getFirestore = (): Firestore => {
@@ -313,4 +315,56 @@ export const getLeagueById = async (leagueId: string) => {
     throw error;
   }
 };
+
+export const updateTeamLogo = async (teamId: string, imageUri: string): Promise<void> => {
+  try {
+    // Make sure Firestore is initialized
+    if (!firestore) {
+      throw new Error('Firestore not initialized');
+    }
+    
+    // Upload the image to Firebase Storage
+    const logoUrl = await uploadTeamLogo(teamId, imageUri);
+    
+    // Update the team document in Firestore
+    const teamRef = doc(firestore, 'teams', teamId);
+    await updateDoc(teamRef, {
+      logo: logoUrl,
+      // You might want to update both fields if you're using both in your app
+      logoUrl: logoUrl
+    });
+  } catch (error) {
+    console.error('Error updating team logo:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update an existing team
+ */
+export const updateTeam = async (teamId: string, teamData: Partial<Team>): Promise<void> => {
+  try {
+    // Check if Firestore is initialized
+    if (!firestore) {
+      throw new Error('Firestore not initialized');
+    }
+    
+    console.log(`Updating team with ID: ${teamId}`);
+    
+    // Reference to the team document
+    const teamRef = doc(firestore, 'teams', teamId);
+    
+    // Update the team data
+    await updateDoc(teamRef, {
+      ...teamData,
+      updatedAt: new Date()
+    });
+    
+    console.log(`Team ${teamId} updated successfully`);
+  } catch (error) {
+    console.error(`Error updating team ${teamId}:`, error);
+    throw error;
+  }
+};
+
 // Export additional functions as needed for your app

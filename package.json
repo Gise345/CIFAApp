@@ -9,7 +9,6 @@
     "web": "expo start --web",
     "test": "jest --watchAll",
     "duplicate-docs": "node ./scripts/duplicateDocument.js"
-
   },
   "jest": {
     "preset": "jest-expo"
@@ -33,6 +32,7 @@
     "expo-constants": "~17.1.5",
     "expo-device": "^7.1.4",
     "expo-font": "~13.3.1",
+    "expo-image-manipulator": "^13.1.5",
     "expo-image-picker": "~16.1.4",
     "expo-linear-gradient": "~14.1.4",
     "expo-linking": "~7.1.4",

@@ -38,3 +38,4 @@ export interface Player {
   createdAt?: any;
   updatedAt?: any;
 }
+
