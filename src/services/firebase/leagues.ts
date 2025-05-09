@@ -8,9 +8,18 @@ import {
   doc, 
   orderBy, 
   limit as firestoreLimit,
-  Timestamp 
+  Timestamp,
+  Firestore
 } from 'firebase/firestore';
-import { firestore } from './config';
+import { firestore as firestoreInstance } from './config';
+
+// Get Firestore with proper typing
+const getFirestore = (): Firestore => {
+  if (!firestoreInstance) {
+    throw new Error('Firestore not initialized');
+  }
+  return firestoreInstance;
+};
 
 export interface League {
   id: string;
@@ -107,6 +116,7 @@ export interface LeagueFixture {
  */
 export const getAllLeagues = async (): Promise<League[]> => {
   try {
+    const firestore = getFirestore();
     const leaguesCollection = collection(firestore, 'leagues');
     const leaguesQuery = query(leaguesCollection, orderBy('name'));
     
@@ -127,6 +137,7 @@ export const getAllLeagues = async (): Promise<League[]> => {
  */
 export const getActiveLeagues = async (): Promise<League[]> => {
   try {
+    const firestore = getFirestore();
     const leaguesCollection = collection(firestore, 'leagues');
     const leaguesQuery = query(
       leaguesCollection, 
@@ -155,6 +166,7 @@ export const getLeaguesByType = async (
   ageGroup?: string
 ): Promise<League[]> => {
   try {
+    const firestore = getFirestore();
     const leaguesCollection = collection(firestore, 'leagues');
     let leaguesQuery;
     
@@ -226,6 +238,7 @@ export const getLeaguesByType = async (
  */
 export const getLeagueById = async (leagueId: string): Promise<League | null> => {
   try {
+    const firestore = getFirestore();
     const leagueDoc = await getDoc(doc(firestore, 'leagues', leagueId));
     
     if (!leagueDoc.exists()) {
@@ -247,6 +260,7 @@ export const getLeagueById = async (leagueId: string): Promise<League | null> =>
  */
 export const getLeagueStandings = async (leagueId: string): Promise<LeagueStanding[]> => {
   try {
+    const firestore = getFirestore();
     const standingsCollection = collection(firestore, 'leagueStandings');
     const standingsQuery = query(
       standingsCollection,
@@ -274,6 +288,7 @@ export const getFixturesByLeague = async (
   limit?: number
 ): Promise<LeagueFixture[]> => {
   try {
+    const firestore = getFirestore();
     const fixturesCollection = collection(firestore, 'matches');
     let fixturesQuery;
     
@@ -314,6 +329,7 @@ export const getFixturesByLeague = async (
  */
 export const getFixtureById = async (fixtureId: string): Promise<LeagueFixture | null> => {
   try {
+    const firestore = getFirestore();
     const fixtureDoc = await getDoc(doc(firestore, 'matches', fixtureId));
     
     if (!fixtureDoc.exists()) {
@@ -335,6 +351,7 @@ export const getFixtureById = async (fixtureId: string): Promise<LeagueFixture |
  */
 export const getUpcomingFixtures = async (limit: number = 5): Promise<LeagueFixture[]> => {
   try {
+    const firestore = getFirestore();
     const now = new Date();
     const fixturesCollection = collection(firestore, 'matches');
     const fixturesQuery = query(
@@ -362,6 +379,7 @@ export const getUpcomingFixtures = async (limit: number = 5): Promise<LeagueFixt
  */
 export const getRecentResults = async (limit: number = 5): Promise<LeagueFixture[]> => {
   try {
+    const firestore = getFirestore();
     const fixturesCollection = collection(firestore, 'matches');
     const fixturesQuery = query(
       fixturesCollection,
@@ -387,6 +405,7 @@ export const getRecentResults = async (limit: number = 5): Promise<LeagueFixture
  */
 export const getTeamFixtures = async (teamId: string, limit?: number): Promise<LeagueFixture[]> => {
   try {
+    const firestore = getFirestore();
     const fixturesCollection = collection(firestore, 'matches');
     
     // We need to query fixtures where either home or away team ID matches
@@ -425,6 +444,7 @@ export const getTeamFixtures = async (teamId: string, limit?: number): Promise<L
  */
 export const getLiveMatches = async (): Promise<LeagueFixture[]> => {
   try {
+    const firestore = getFirestore();
     const fixturesCollection = collection(firestore, 'matches');
     const fixturesQuery = query(
       fixturesCollection,
