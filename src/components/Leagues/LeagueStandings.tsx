@@ -1,17 +1,23 @@
-// CIFAMobileApp/src/components/leagues/LeagueStandings.tsx
+// src/components/leagues/LeagueStandings.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ActivityIndicator, 
+  TouchableOpacity, 
+  ScrollView,
+  RefreshControl 
+} from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { useLeagues } from '../../hooks/useLeagues';
-import { LeagueStanding, League } from '../../services/firebase/leagues';
-import { LeagueCategory } from '../../constants/LeagueTypes';
+import { LeagueStanding } from '../../services/firebase/leagues';
 import Card from '../common/Card';
 
 interface LeagueStandingsProps {
-  leagueId?: string;
-  category?: LeagueCategory;
+  leagueId: string;
   showTeamLogos?: boolean;
   showFullTable?: boolean;
   maxRows?: number;
@@ -20,7 +26,6 @@ interface LeagueStandingsProps {
 
 const LeagueStandings: React.FC<LeagueStandingsProps> = ({
   leagueId,
-  category,
   showTeamLogos = true,
   showFullTable = false,
   maxRows = 4,
@@ -30,48 +35,47 @@ const LeagueStandings: React.FC<LeagueStandingsProps> = ({
   const { 
     fetchLeagueById, 
     fetchLeagueStandings, 
-    fetchLeaguesByType,
     standings, 
     selectedLeague,
     loading, 
-    error 
+    error,
+    resetErrors
   } = useLeagues();
 
   const [displayedStandings, setDisplayedStandings] = useState<LeagueStanding[]>([]);
   const [loadingLeague, setLoadingLeague] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoadingLeague(true);
-        // If leagueId is provided, fetch that specific league
-        if (leagueId) {
-          const league = await fetchLeagueById(leagueId);
-          if (league) {
-            await fetchLeagueStandings(leagueId);
-          }
-        } 
-        // If category is provided but no leagueId, fetch leagues by type/division
-        else if (category) {
-          const leagues = await fetchLeaguesByType(
-            category.type, 
-            category.division, 
-            category.ageGroup
-          );
-          // If leagues were found, use the first one
-          if (leagues.length > 0) {
-            await fetchLeagueStandings(leagues[0].id);
-          }
-        }
-        setLoadingLeague(false);
-      } catch (err) {
-        console.error('Error loading league data:', err);
-        setLoadingLeague(false);
-      }
-    };
-
     loadData();
-  }, [leagueId, category]);
+  }, [leagueId]);
+
+  // Load standings data
+  const loadData = async () => {
+    try {
+      setLoadingLeague(true);
+      resetErrors();
+      
+      if (leagueId) {
+        const league = await fetchLeagueById(leagueId);
+        if (league) {
+          await fetchLeagueStandings(leagueId);
+        }
+      }
+      
+      setLoadingLeague(false);
+    } catch (err) {
+      console.error('Error loading league data:', err);
+      setLoadingLeague(false);
+    }
+  };
+
+  // Handle refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
 
   // Update displayed standings when standings change
   useEffect(() => {
@@ -88,11 +92,11 @@ const LeagueStandings: React.FC<LeagueStandingsProps> = ({
 
   // Handle navigation to team details
   const handleTeamPress = (teamId: string) => {
-    router.push(`./teams/${teamId}`);
+    router.push(`/teams/${teamId}`);
   };
 
   // Render loading state
-  if (loading || loadingLeague) {
+  if ((loading || loadingLeague) && !refreshing && standings.length === 0) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="small" color="#2563eb" />
@@ -112,7 +116,7 @@ const LeagueStandings: React.FC<LeagueStandingsProps> = ({
   }
 
   // Render empty state
-  if (displayedStandings.length === 0) {
+  if (displayedStandings.length === 0 && !loading && !loadingLeague) {
     return (
       <View style={styles.emptyContainer}>
         <Feather name="list" size={24} color="#9ca3af" />
@@ -137,12 +141,19 @@ const LeagueStandings: React.FC<LeagueStandingsProps> = ({
         <Text style={[styles.headerCell, styles.positionCell]}>#</Text>
         <Text style={[styles.headerCell, styles.teamCell]}>Team</Text>
         <Text style={[styles.headerCell, styles.statsCell]}>P</Text>
+        <Text style={[styles.headerCell, styles.statsCell]}>W</Text>
+        <Text style={[styles.headerCell, styles.statsCell]}>D</Text>
+        <Text style={[styles.headerCell, styles.statsCell]}>L</Text>
         <Text style={[styles.headerCell, styles.statsCell]}>GD</Text>
         <Text style={[styles.headerCell, styles.statsCell]}>PTS</Text>
       </View>
 
       {/* Table Rows */}
-      <ScrollView>
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
         {displayedStandings.map((team, index) => (
           <TouchableOpacity
             key={team.teamId}
@@ -174,6 +185,9 @@ const LeagueStandings: React.FC<LeagueStandingsProps> = ({
               </Text>
             </View>
             <Text style={[styles.cell, styles.statsCell]}>{team.played}</Text>
+            <Text style={[styles.cell, styles.statsCell]}>{team.won}</Text>
+            <Text style={[styles.cell, styles.statsCell]}>{team.drawn}</Text>
+            <Text style={[styles.cell, styles.statsCell]}>{team.lost}</Text>
             <Text style={[styles.cell, styles.statsCell]}>{team.goalDifference}</Text>
             <Text style={[styles.cell, styles.pointsCell]}>{team.points}</Text>
           </TouchableOpacity>

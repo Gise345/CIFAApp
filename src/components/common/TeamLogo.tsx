@@ -1,27 +1,29 @@
 // src/components/common/TeamLogo.tsx
-import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Image, StyleSheet } from 'react-native';
 
 interface TeamLogoProps {
   teamId: string;
   teamName: string;
   teamCode?: string;
-  logo?: string;
+  logoUrl?: string;
   size?: 'small' | 'medium' | 'large';
-  showName?: boolean;
   colorPrimary?: string;
+  showName?: boolean;
 }
 
 const TeamLogo: React.FC<TeamLogoProps> = ({
   teamId,
   teamName,
   teamCode,
-  logo,
+  logoUrl,
   size = 'medium',
+  colorPrimary = '#2563eb',
   showName = false,
-  colorPrimary
 }) => {
-  // Get team initials if no code provided
+  const [imageError, setImageError] = useState(false);
+  
+  // Get team initials if no team code provided
   const getTeamInitials = (name: string): string => {
     if (!name) return '';
     
@@ -37,53 +39,57 @@ const TeamLogo: React.FC<TeamLogoProps> = ({
       .join('')
       .toUpperCase();
   };
-
-  // Get logo sizes based on size prop
-  const getSize = (): { container: number, text: number } => {
-    switch (size) {
-      case 'small':
-        return { container: 32, text: 12 };
-      case 'large':
-        return { container: 64, text: 20 };
-      case 'medium':
-      default:
-        return { container: 48, text: 16 };
-    }
-  };
-
-  const { container: containerSize, text: textSize } = getSize();
+  
+  // Determine logo size based on prop
+  const logoSize = {
+    small: 32,
+    medium: 48,
+    large: 72,
+  }[size];
+  
+  // Determine text size based on logo size
+  const textSize = {
+    small: 10,
+    medium: 14,
+    large: 20,
+  }[size];
+  
+  // Display the team code or initials if no logo or error loading logo
   const displayCode = teamCode || getTeamInitials(teamName);
-  const backgroundColor = colorPrimary || '#2563eb'; // Default blue if no color provided
-
+  
+  // Handle image load error
+  const handleImageError = () => {
+    console.warn(`Error loading logo for team: ${teamName} (${teamId})`);
+    setImageError(true);
+  };
+  
   return (
-    <View style={[
-      styles.container,
-      showName && styles.containerWithName
-    ]}>
-      <View style={[
-        styles.logoContainer,
-        { 
-          width: containerSize, 
-          height: containerSize,
-          borderRadius: containerSize / 2,
-          backgroundColor
-        }
-      ]}>
-        {logo ? (
+    <View style={[styles.container, showName && styles.containerWithName]}>
+      <View 
+        style={[
+          styles.logoContainer, 
+          { 
+            width: logoSize, 
+            height: logoSize, 
+            borderRadius: logoSize / 2,
+            backgroundColor: colorPrimary 
+          }
+        ]}
+      >
+        {logoUrl && !imageError ? (
           <Image 
-            source={{ uri: logo }} 
-            style={{ 
-              width: containerSize - 4, 
-              height: containerSize - 4,
-              borderRadius: (containerSize - 4) / 2
-            }}
-            resizeMode="cover"
+            source={{ uri: logoUrl }}
+            style={styles.logoUrl}
+            resizeMode="contain"
+            onError={handleImageError}
           />
         ) : (
-          <Text style={[
-            styles.logoText,
-            { fontSize: textSize }
-          ]}>
+          <Text 
+            style={[
+              styles.logoText, 
+              { fontSize: textSize }
+            ]}
+          >
             {displayCode}
           </Text>
         )}
@@ -103,25 +109,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   containerWithName: {
-    marginBottom: 4,
+    marginBottom: 8,
   },
   logoContainer: {
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-    marginBottom: 4,
+  },
+  logoUrl: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 999, // Ensure the image stays within the circular container
   },
   logoText: {
     color: 'white',
     fontWeight: 'bold',
   },
   teamName: {
+    marginTop: 8,
     fontSize: 12,
     color: '#111827',
     textAlign: 'center',
-    marginTop: 4,
     maxWidth: 80,
-  }
+  },
 });
 
 export default TeamLogo;

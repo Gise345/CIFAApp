@@ -145,8 +145,8 @@ const TeamList: React.FC<TeamListProps> = ({
               { backgroundColor: team.colorPrimary || getTeamColor(team.name) }
             ]}
           >
-            {team.logo ? (
-              <Image source={{ uri: team.logo }} style={styles.logoImage} />
+            {team.logoUrl ? (
+              <Image source={{ uri: team.logoUrl }} style={styles.logoImage} />
             ) : (
               <Text style={styles.teamInitials}>
                 {getTeamInitials(team.name)}

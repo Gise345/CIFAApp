@@ -29,7 +29,7 @@ const Header: React.FC<HeaderProps> = ({
         )}
         
         {!showBack && title === 'CIFA' && (
-          <View style={styles.logo}>
+          <View style={styles.logoUrl}>
             <Text style={styles.logoText}>C</Text>
           </View>
         )}
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  logo: {
+  logoUrl: {
     width: 36,
     height: 36,
     borderRadius: 18,

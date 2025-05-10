@@ -1,12 +1,12 @@
 // CIFAMobileApp/src/components/tables/LeagueTableRow.tsx
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 
 interface Team {
   id: string;
   name: string;
-  logo: string;
+  logoUrl?: string;
   position: number;
   played: number;
   goalDifference: string;
@@ -20,14 +20,9 @@ interface LeagueTableRowProps {
 }
 
 const LeagueTableRow: React.FC<LeagueTableRowProps> = ({ team, isLast = false }) => {
-  const router = useRouter();
-  
   const handleTeamPress = () => {
-    // Use string literal for navigation
-    router.push({
-      pathname: "/teams/[id]",
-      params: { id: team.id },
-    });
+    // Use the updated router.push method for SDK 53
+    router.push(`/teams/${team.id}`);
   };
   
   return (

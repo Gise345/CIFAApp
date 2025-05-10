@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Link } from 'expo-router';
+import { Link } from 'react-router-native';
 import Button from '../../src/components/common/Button';
 
 export default function LoginScreen() {
@@ -56,10 +56,8 @@ export default function LoginScreen() {
           
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Don't have an account? </Text>
-            <Link href="/register" asChild>
-              <TouchableOpacity>
-                <Text style={styles.registerLink}>Sign Up</Text>
-              </TouchableOpacity>
+            <Link to="/register">
+              <Text style={styles.registerLink}>Sign Up</Text>
             </Link>
           </View>
         </View>

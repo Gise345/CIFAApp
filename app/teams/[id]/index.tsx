@@ -25,7 +25,7 @@ import { LeagueFixture } from '../../../src/services/firebase/leagues';
 import Card from '../../../src/components/common/Card';
 import Section from '../../../src/components/common/Section';
 import EnhancedPlayerList from '../../../src/components/teams/EnhancedPlayerList';
-import FixtureItem from '../../../src/components/Leagues/FixtureItem';
+import FixtureItem from '../../../src/components/leagues/FixtureItem';
 import TeamPlayerStories from '../../../src/components/teams/TeamPlayerStories'; 
 
 const windowWidth = Dimensions.get('window').width;

@@ -1,4 +1,4 @@
-// CIFAMobileApp/src/components/leagues/LeagueFixtures.tsx
+// src/components/leagues/LeagueFixtures.tsx
 import React, { useEffect, useState } from 'react';
 import { 
   View, 
@@ -14,8 +14,7 @@ import { useRouter } from 'expo-router';
 import { format, isSameDay } from 'date-fns';
 
 import { useLeagues } from '../../hooks/useLeagues';
-import { LeagueFixture, League } from '../../services/firebase/leagues';
-import { LeagueCategory } from '../../constants/LeagueTypes';
+import { LeagueFixture } from '../../services/firebase/leagues';
 import Card from '../common/Card';
 import FixtureItem from './FixtureItem';
 
@@ -26,8 +25,7 @@ interface SectionData {
 }
 
 interface LeagueFixturesProps {
-  leagueId?: string;
-  category?: LeagueCategory;
+  leagueId: string;
   status?: 'scheduled' | 'completed';
   showVenue?: boolean;
   maxItems?: number;
@@ -36,8 +34,7 @@ interface LeagueFixturesProps {
 
 const LeagueFixtures: React.FC<LeagueFixturesProps> = ({
   leagueId,
-  category,
-  status,
+  status = 'scheduled',
   showVenue = true,
   maxItems,
   onViewAllFixtures
@@ -46,7 +43,6 @@ const LeagueFixtures: React.FC<LeagueFixturesProps> = ({
   const { 
     fetchLeagueById,
     fetchFixturesByLeague,
-    fetchLeaguesByType,
     fixtures,
     selectedLeague, 
     loading,
@@ -59,29 +55,16 @@ const LeagueFixtures: React.FC<LeagueFixturesProps> = ({
 
   useEffect(() => {
     loadData();
-  }, [leagueId, category, status]);
+  }, [leagueId, status]);
 
   // Load league and fixtures data
   const loadData = async () => {
     try {
       setLoadingLeague(true);
-      // If leagueId is provided, fetch that specific league
       if (leagueId) {
         const league = await fetchLeagueById(leagueId);
         if (league) {
           await fetchFixturesByLeague(leagueId, status);
-        }
-      } 
-      // If category is provided but no leagueId, fetch leagues by type/division
-      else if (category) {
-        const leagues = await fetchLeaguesByType(
-          category.type, 
-          category.division, 
-          category.ageGroup
-        );
-        // If leagues were found, use the first one
-        if (leagues.length > 0) {
-          await fetchFixturesByLeague(leagues[0].id, status);
         }
       }
       setLoadingLeague(false);
@@ -89,6 +72,20 @@ const LeagueFixtures: React.FC<LeagueFixturesProps> = ({
       console.error('Error loading league data:', err);
       setLoadingLeague(false);
     }
+  };
+
+  // Helper function to convert Firestore Timestamp to JavaScript Date
+  const convertToDate = (fixtureDate: any): Date => {
+    // If it's a Firestore Timestamp with a toDate method
+    if (fixtureDate && typeof fixtureDate.toDate === 'function') {
+      return fixtureDate.toDate();
+    }
+    // If it's already a Date object
+    if (fixtureDate instanceof Date) {
+      return fixtureDate;
+    }
+    // Otherwise try to parse as string or number
+    return new Date(fixtureDate);
   };
 
   // Group fixtures by date when fixtures data changes
@@ -101,7 +98,8 @@ const LeagueFixtures: React.FC<LeagueFixturesProps> = ({
       const limitedFixtures = maxItems ? fixtures.slice(0, maxItems) : fixtures;
       
       limitedFixtures.forEach(fixture => {
-        const fixtureDate = fixture.date.toDate();
+        // Convert Firestore Timestamp to JavaScript Date
+        const fixtureDate = convertToDate(fixture.date);
         const dateKey = format(fixtureDate, 'yyyy-MM-dd');
         
         if (!groupedFixtures[dateKey]) {
@@ -121,13 +119,18 @@ const LeagueFixtures: React.FC<LeagueFixturesProps> = ({
             data: groupedFixtures[dateKey]
           };
         })
-        .sort((a, b) => a.date.getTime() - b.date.getTime());
+        .sort((a, b) => {
+          // For scheduled fixtures, sort ascending. For completed, sort descending
+          return status === 'scheduled' 
+            ? a.date.getTime() - b.date.getTime()
+            : b.date.getTime() - a.date.getTime();
+        });
       
       setSections(fixturesSections);
     } else {
       setSections([]);
     }
-  }, [fixtures, maxItems]);
+  }, [fixtures, maxItems, status]);
 
   // Format date for section headers
   const formatDateHeader = (date: Date): string => {
@@ -168,7 +171,7 @@ const LeagueFixtures: React.FC<LeagueFixturesProps> = ({
     return (
       <View style={styles.errorContainer}>
         <Feather name="alert-circle" size={24} color="#ef4444" />
-        <Text style={styles.errorText}>Failed to load fixtures</Text>
+        <Text style={styles.errorText}>{error}</Text>
       </View>
     );
   }
@@ -221,6 +224,15 @@ const LeagueFixtures: React.FC<LeagueFixturesProps> = ({
         style={styles.list}
         contentContainerStyle={styles.listContent}
         stickySectionHeadersEnabled={true}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyListContainer}>
+            <Text style={styles.emptyListText}>
+              {status === 'completed' 
+                ? 'No results available yet' 
+                : 'No fixtures scheduled yet'}
+            </Text>
+          </View>
+        )}
       />
 
       {/* Show "View All" button if we have a maxItems limit and there are more fixtures */}
@@ -321,6 +333,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 14,
     color: '#6b7280',
+  },
+  emptyListContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyListText: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
   },
 });
 

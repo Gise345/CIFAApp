@@ -1,79 +1,64 @@
-// CIFAMobileApp/src/components/teams/TeamDetail.tsx
-import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import Card from '../common/Card';
 import Section from '../common/Section';
+import { getTeamById } from '../../services/firebase/teams';
+import { Team } from '../../types/team';
 
 interface TeamDetailProps {
   teamId: string;
 }
 
 const TeamDetail: React.FC<TeamDetailProps> = ({ teamId }) => {
-  // This would come from Firebase in production
-  const getTeamData = (id: string) => {
-    // Mock team data
-    const teams = {
-      'team1': {
-        id: 'team1',
-        name: 'Elite Sports Club',
-        shortName: 'Elite SC',
-        division: "Men's Premier League",
-        founded: 1992,
-        stadium: 'Ed Bush Stadium',
-        colors: 'Green and White',
-        coach: 'John Smith',
-        description: 'Elite Sports Club is one of the premier football clubs in the Cayman Islands, known for their strong youth development program and competitive presence in the league.',
-        colorPrimary: '#16a34a', // Green
-        website: 'www.elitesc.ky',
-        achievements: [
-          '5x Premier League Champions',
-          '3x FA Cup Winners',
-          '2x Caribbean Club Shield Participants'
-        ]
-      },
-      'team2': {
-        id: 'team2',
-        name: 'Scholars International',
-        shortName: 'Scholars',
-        division: "Men's Premier League",
-        founded: 1995,
-        stadium: 'Ed Bush Stadium',
-        colors: 'Blue and White',
-        coach: 'Mark Richards',
-        description: 'Scholars International is a powerhouse in Cayman football, with a rich history of success both domestically and in regional competitions.',
-        colorPrimary: '#1e40af', // Blue
-        website: 'www.scholarsinternational.ky',
-        achievements: [
-          '7x Premier League Champions',
-          '4x FA Cup Winners',
-          'CONCACAF Champions League Participants'
-        ]
-      },
-      'team3': {
-        id: 'team3',
-        name: 'Bodden Town FC',
-        shortName: 'Bodden Town',
-        division: "Men's Premier League",
-        founded: 1998,
-        stadium: 'Haig Bodden Stadium',
-        colors: 'Purple and Black',
-        coach: 'David Wilson',
-        description: 'Bodden Town FC represents one of the historic districts of Grand Cayman, with strong community support and a focus on developing local talent.',
-        colorPrimary: '#7e22ce', // Purple
-        website: 'www.boddentownfc.ky',
-        achievements: [
-          '3x Premier League Champions',
-          '2x FA Cup Winners',
-          'Caribbean Club Championship Participants'
-        ]
-      },
-      // Add more teams as needed
+  const [team, setTeam] = useState<Team | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchTeamData = async () => {
+      if (team) {
+        console.log("Team data received:", JSON.stringify(team, null, 2));
+        console.log("Coach field:", team.coach);
+      }
+      try {
+        setLoading(true);
+        const teamData = await getTeamById(teamId);
+        setTeam(teamData);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching team:', err);
+        setError('Failed to load team details');
+        setLoading(false);
+      }
     };
     
-    return teams[id as keyof typeof teams] || teams['team1'];
-  };
-
-  const team = getTeamData(teamId);
+    fetchTeamData();
+  }, [teamId]);
+  
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color="#2563eb" />
+        <Text style={styles.loadingText}>Loading team information...</Text>
+      </View>
+    );
+  }
+  
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+  
+  if (!team) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>Team not found</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -81,10 +66,12 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId }) => {
         <View 
           style={[
             styles.teamLogoContainer, 
-            { backgroundColor: team.colorPrimary }
+            { backgroundColor: team.colorPrimary || '#2563eb' }
           ]}
         >
-          <Text style={styles.teamLogoText}>{team.shortName}</Text>
+          <Text style={styles.teamLogoText}>
+            {getTeamInitials(team.name)}
+          </Text>
         </View>
         <View style={styles.headerTextContainer}>
           <Text style={styles.teamName}>{team.name}</Text>
@@ -96,45 +83,68 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId }) => {
         <Card>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Founded:</Text>
-            <Text style={styles.infoValue}>{team.founded}</Text>
+            <Text style={styles.infoValue}>{team.foundedYear || 'Unknown'}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Home Ground:</Text>
-            <Text style={styles.infoValue}>{team.stadium}</Text>
+            <Text style={styles.infoValue}>{team.venue || 'Unknown'}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Colors:</Text>
-            <Text style={styles.infoValue}>{team.colors}</Text>
+            <Text style={styles.infoValue}>{team.colors || 'Unknown'}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Head Coach:</Text>
-            <Text style={styles.infoValue}>{team.coach}</Text>
+            <Text style={styles.infoValue}>{team.coach || 'Unknown'}</Text>
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Website:</Text>
-            <Text style={[styles.infoValue, styles.website]}>{team.website}</Text>
-          </View>
-        </Card>
-      </Section>
-      
-      <Section title="ABOUT" style={styles.section}>
-        <Card>
-          <Text style={styles.description}>{team.description}</Text>
-        </Card>
-      </Section>
-      
-      <Section title="ACHIEVEMENTS" style={styles.section}>
-        <Card>
-          {team.achievements.map((achievement, index) => (
-            <View key={index} style={styles.achievementRow}>
-              <View style={styles.bullet} />
-              <Text style={styles.achievementText}>{achievement}</Text>
+          {team.website && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Website:</Text>
+              <Text style={[styles.infoValue, styles.website]}>{team.website}</Text>
             </View>
-          ))}
+          )}
         </Card>
       </Section>
+      
+      {team.description && (
+        <Section title="ABOUT" style={styles.section}>
+          <Card>
+            <Text style={styles.description}>{team.description}</Text>
+          </Card>
+        </Section>
+      )}
+      
+      {team.achievements && team.achievements.length > 0 && (
+        <Section title="ACHIEVEMENTS" style={styles.section}>
+          <Card>
+            {team.achievements.map((achievement, index) => (
+              <View key={index} style={styles.achievementRow}>
+                <View style={styles.bullet} />
+                <Text style={styles.achievementText}>{achievement}</Text>
+              </View>
+            ))}
+          </Card>
+        </Section>
+      )}
     </View>
   );
+};
+
+// Helper function to get team initials
+const getTeamInitials = (teamName: string): string => {
+  if (!teamName) return '';
+  
+  const words = teamName.split(' ');
+  if (words.length === 1) {
+    return words[0].substring(0, 3).toUpperCase();
+  }
+  
+  // Return first letter of each word (up to 3)
+  return words
+    .slice(0, 3)
+    .map(word => word.charAt(0))
+    .join('')
+    .toUpperCase();
 };
 
 const styles = StyleSheet.create({
@@ -250,6 +260,31 @@ standingPoints: {
   fontSize: 16,
   fontWeight: '500',
   color: '#111827',
+},
+loadingContainer: {
+  padding: 20,
+  alignItems: 'center',
+},
+loadingText: {
+  marginTop: 8,
+  fontSize: 14,
+  color: '#6b7280',
+},
+errorContainer: {
+  padding: 20,
+  alignItems: 'center',
+},
+errorText: {
+  color: '#ef4444',
+  fontSize: 14,
+},
+emptyContainer: {
+  padding: 20,
+  alignItems: 'center',
+},
+emptyText: {
+  color: '#6b7280',
+  fontSize: 14,
 },
 });
 

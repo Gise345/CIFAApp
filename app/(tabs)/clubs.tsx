@@ -1,4 +1,4 @@
-// app/(tabs)/clubs.tsx
+// app/(tabs)/clubs.tsx - Fixed version
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
@@ -8,7 +8,8 @@ import {
   TouchableOpacity, 
   SafeAreaView,
   ActivityIndicator,
-  Platform
+  Platform,
+  Image
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -22,7 +23,7 @@ import {
 } from 'firebase/firestore';
 import { Team } from '../../src/types/team';
 
-// Simple Header component to avoid import issues
+// Simple Header component
 const SimpleHeader = ({ title }: { title: string }) => {
   return (
     <View style={headerStyles.container}>
@@ -47,7 +48,7 @@ const headerStyles = StyleSheet.create({
   }
 });
 
-// Simple Team Card component to avoid circular dependencies
+// Simple Team Card component
 const TeamCard = ({ team, onPress }: { team: Team, onPress: () => void }) => {
   const getTeamInitials = (name: string) => {
     if (!name) return '';
@@ -55,15 +56,27 @@ const TeamCard = ({ team, onPress }: { team: Team, onPress: () => void }) => {
     return words.slice(0, 3).map(word => word.charAt(0)).join('').toUpperCase();
   };
 
+  // Check if team has a valid logo URL
+  const logoUrl = team.logoUrl; 
+  const hasLogo = logoUrl && typeof logoUrl === 'string' && logoUrl.trim() !== '';
+
   return (
     <TouchableOpacity style={cardStyles.container} onPress={onPress}>
       <View 
         style={[
-          cardStyles.logo, 
+          cardStyles.logoContainer, 
           { backgroundColor: team.colorPrimary || '#2563eb' }
         ]}
       >
-        <Text style={cardStyles.initials}>{getTeamInitials(team.name)}</Text>
+        {hasLogo ? (
+          <Image 
+            source={{ uri: logoUrl }} 
+            style={cardStyles.logoImage}
+            resizeMode="contain"
+          />
+        ) : (
+          <Text style={cardStyles.initials}>{getTeamInitials(team.name)}</Text>
+        )}
       </View>
       <Text style={cardStyles.name} numberOfLines={1}>{team.name}</Text>
       <Text style={cardStyles.division} numberOfLines={1}>{team.division}</Text>
@@ -77,13 +90,19 @@ const cardStyles = StyleSheet.create({
     marginHorizontal: 8,
     alignItems: 'center',
   },
-  logo: {
+  logoContainer: {
     width: 60,
     height: 60,
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 30,
   },
   initials: {
     fontSize: 20,
@@ -104,9 +123,9 @@ const cardStyles = StyleSheet.create({
   },
 });
 
-// Simple TeamList component to avoid circular dependencies
+// SimpleTeamList component
 const SimpleTeamList = ({ teams, onViewAll }: { teams: Team[], onViewAll?: () => void }) => {
-  if (teams.length === 0) {
+  if (!teams || teams.length === 0) {
     return null;
   }
 
@@ -169,36 +188,9 @@ const listStyles = StyleSheet.create({
   },
 });
 
-// Mock data for immediate display
-const mockTeams: Team[] = [
-  {
-    id: 'team1',
-    name: 'Elite Sports Club',
-    shortName: 'Elite SC',
-    division: "Men's Premier League",
-    type: 'club',
-    colorPrimary: '#16a34a', // Green
-  },
-  {
-    id: 'team2',
-    name: 'Scholars International',
-    shortName: 'Scholars',
-    division: "Men's Premier League",
-    type: 'club',
-    colorPrimary: '#1e40af', // Blue
-  },
-  {
-    id: 'team3',
-    name: 'Bodden Town FC',
-    shortName: 'Bodden Town',
-    division: "Men's Premier League",
-    type: 'club',
-    colorPrimary: '#7e22ce', // Purple
-  },
-];
+// Remove mock data section entirely
 
 export default function ClubsScreen() {
-  // Use the imported router directly
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mensTeams, setMensTeams] = useState<Team[]>([]);
@@ -213,6 +205,7 @@ export default function ClubsScreen() {
       // Use dynamic import to avoid blocking bundle load
       import('../../src/services/firebase/config').then(({ firestore }) => {
         if (!firestore) {
+          console.error('Firestore not initialized');
           setError('Firebase not properly initialized');
           setLoading(false);
           return;
@@ -221,28 +214,37 @@ export default function ClubsScreen() {
         // Safely proceed with typed firestore instance
         const fetchTeams = async (firestoreInstance: Firestore) => {
           try {
+            console.log('Fetching teams from Firestore...');
             
-            // Mens teams
-            const mensQuery = query(
-              collection(firestoreInstance, 'teams'),
-              where('type', '==', 'club'),
-              where('division', '==', "Men's Premier League")
-            );
-            
-            const mensSnapshot = await getDocs(mensQuery);
-            const mensData = mensSnapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            } as Team));
-          
-            
-            // If no data from Firestore, use mock data
-            if (mensData.length === 0) {
-              setMensTeams(mockTeams);
-            } else {
-              setMensTeams(mensData);
+            // Men's teams - using try/catch for each category to ensure one failure doesn't prevent others from loading
+            try {
+              const mensQuery = query(
+                collection(firestoreInstance, 'teams'),
+                where('type', '==', 'club'),
+                where('division', '==', "Men's Premier League")
+              );
+              
+              const mensSnapshot = await getDocs(mensQuery);
+              const mensData = mensSnapshot.docs.map(doc => {
+                const data = doc.data();
+                console.log(`Fetched men's team: ${data.name}, logoUrl: ${data.logoUrl || 'No logo'}`);
+                return {
+                  id: doc.id,
+                  ...data
+                } as Team;
+              });
+              
+              console.log(`Fetched ${mensData.length} Men's teams`);
+              
+              // Set men's teams - critical fix: this was missing
+              if (mensData.length > 0) {
+                setMensTeams(mensData);
+              }
+            } catch (e) {
+              console.error("Error fetching men's teams:", e);
             }
             
+            // Women's teams
             try {
               const womensQuery = query(
                 collection(firestoreInstance, 'teams'),
@@ -251,15 +253,19 @@ export default function ClubsScreen() {
               );
               
               const womensSnapshot = await getDocs(womensQuery);
-              const womensData = womensSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-              } as Team));
+              const womensData = womensSnapshot.docs.map(doc => {
+                const data = doc.data();
+                console.log(`Fetched women's team: ${data.name}, logoUrl: ${data.logoUrl || 'No logo'}`);
+                return {
+                  id: doc.id,
+                  ...data
+                } as Team;
+              });
               
-
+              console.log(`Fetched ${womensData.length} Women's teams`);
               setWomensTeams(womensData);
             } catch (e) {
-              console.error('Error fetching women\'s teams:', e);
+              console.error("Error fetching women's teams:", e);
             }
             
             // Youth teams
@@ -271,14 +277,19 @@ export default function ClubsScreen() {
               );
               
               const youthSnapshot = await getDocs(youthQuery);
-              const youthData = youthSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-              } as Team));
+              const youthData = youthSnapshot.docs.map(doc => {
+                const data = doc.data();
+                console.log(`Fetched youth team: ${data.name}, logoUrl: ${data.logoUrl || 'No logo'}`);
+                return {
+                  id: doc.id,
+                  ...data
+                } as Team;
+              });
               
+              console.log(`Fetched ${youthData.length} Youth teams`);
               setYouthTeams(youthData);
             } catch (e) {
-              console.error('Error fetching youth teams:', e);
+              console.error("Error fetching youth teams:", e);
             }
 
             // First Division teams
@@ -290,22 +301,24 @@ export default function ClubsScreen() {
               );
               
               const firstDivisionSnapshot = await getDocs(firstDivisionQuery);
-              const firstDivisonData = firstDivisionSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-              } as Team));
+              const firstDivisionData = firstDivisionSnapshot.docs.map(doc => {
+                const data = doc.data();
+                console.log(`Fetched first division team: ${data.name}, logoUrl: ${data.logoUrl || 'No logo'}`);
+                return {
+                  id: doc.id,
+                  ...data
+                } as Team;
+              });
               
-              setFirstDivisionTeams(firstDivisonData);
+              console.log(`Fetched ${firstDivisionData.length} First Division teams`);
+              setFirstDivisionTeams(firstDivisionData);
             } catch (e) {
-              console.error('Error fetching first division teams:', e);
+              console.error("Error fetching first division teams:", e);
             }
-            
             
             setLoading(false);
           } catch (err) {
             console.error('Error fetching teams:', err);
-            // Fallback to mock data on error
-            setMensTeams(mockTeams);
             setError('Some team data could not be loaded');
             setLoading(false);
           }
@@ -336,6 +349,11 @@ export default function ClubsScreen() {
   // Navigate to all youth teams
   const handleViewAllYouthTeams = () => {
     router.push("/teams?type=club&division=Youth League");
+  };
+
+  // Navigate to all first division teams
+  const handleViewAllFirstDivisionTeams = () => {
+    router.push("/teams?type=club&division=CIFA Men's First Division");
   };
   
   return (
@@ -403,13 +421,14 @@ export default function ClubsScreen() {
                   <Text style={styles.sectionTitle}>Men's First Division</Text>
                   <SimpleTeamList 
                     teams={firstDivisionTeams} 
-                    onViewAll={() => router.push("/teams?type=club&division=CIFA Men's First Division")}
+                    onViewAll={handleViewAllFirstDivisionTeams} 
                   />
                 </View>
               )}
               
               {/* Show message if no teams found */}
-              {mensTeams.length === 0 && womensTeams.length === 0 && youthTeams.length === 0 && (
+              {mensTeams.length === 0 && womensTeams.length === 0 && 
+               youthTeams.length === 0 && firstDivisionTeams.length === 0 && (
                 <View style={styles.emptyContainer}>
                   <Feather name="users" size={32} color="#9ca3af" />
                   <Text style={styles.emptyText}>No teams found</Text>

@@ -72,8 +72,8 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, style }) => {
       >
         <View style={styles.teamInfo}>
           <View style={styles.logoContainer}>
-            {team.logo ? (
-              <Image source={{ uri: team.logo }} style={styles.logo} />
+            {team.logoUrl ? (
+              <Image source={{ uri: team.logoUrl }} style={styles.logo} />
             ) : (
               <View style={styles.logoPlaceholder}>
                 <Text style={styles.logoText}>{getTeamInitials(team.name)}</Text>

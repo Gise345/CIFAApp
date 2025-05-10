@@ -214,7 +214,7 @@ export default function TeamEditScreen() {
           {teamId && (
             <TeamImageUpload
               teamId={teamId}
-              currentLogoUrl={team?.logo}
+              currentLogoUrl={team?.logoUrl}
               onSuccess={handleLogoUploadSuccess}
             />
           )}

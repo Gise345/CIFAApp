@@ -1,10 +1,22 @@
 // CIFAMobileApp/src/components/tables/LeagueTable.tsx
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import Card from '../common/Card';
 import Section from '../common/Section';
 import LeagueTableRow from './LeagueTableRow';
+
+// Define the Team interface to match what LeagueTableRow expects
+interface Team {
+  id: string;
+  name: string;
+  logo: string;
+  position: number;
+  played: number;
+  goalDifference: string;
+  points: number;
+  color: string;
+}
 
 interface LeagueTableProps {
   leagueId: string;
@@ -15,12 +27,15 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
   leagueId, 
   onViewFullTable 
 }) => {
-  const router = useRouter();
-  
   // This would come from Firebase in production based on leagueId
   const getLeagueData = (id: string) => {
     // Mock data structure
-    const leagues = {
+    const leagues: Record<string, {
+      id: string;
+      name: string;
+      season: string;
+      teams: Team[];
+    }> = {
       'mensPremier': {
         id: 'mensPremier',
         name: "MEN'S PREMIER LEAGUE",
@@ -258,7 +273,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
       },
     };
     
-    return leagues[id as keyof typeof leagues] || leagues['mensPremier'];
+    return leagues[id] || leagues['mensPremier'];
   };
 
   const leagueData = getLeagueData(leagueId);
@@ -267,11 +282,8 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
     if (onViewFullTable) {
       onViewFullTable();
     } else {
-      // Navigate to full table view
-      router.push({
-        pathname: "/leagues/[id]/standings",
-        params: { id: leagueId }
-      });
+      // Navigate to full table view with the updated router API for SDK 53
+      router.push(`/leagues/${leagueId}/standings`);
     }
   };
 

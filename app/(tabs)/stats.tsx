@@ -14,7 +14,7 @@ import { Feather } from '@expo/vector-icons';
 
 import Header from '../../src/components/common/Header';
 import LeagueTable from '../../src/components/tables/LeagueTable';
-import LeagueSelector from '../../src/components/Leagues/LeagueSelector';
+import LeagueSelector from '../../src/components/leagues/LeagueSelector';
 import TopScorers from '../../src/components/tables/TopScorers';
 import Card from '../../src/components/common/Card';
 import { LEAGUE_CATEGORIES, LeagueCategory } from '../../src/constants/LeagueTypes';

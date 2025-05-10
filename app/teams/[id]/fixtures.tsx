@@ -14,7 +14,7 @@ import { format } from 'date-fns';
 
 import { useTeams } from '../../../src/hooks/useTeams';
 import { LeagueFixture } from '../../../src/services/firebase/leagues';
-import FixtureItem from '../../../src/components/Leagues/FixtureItem';
+import FixtureItem from '../../../src/components/leagues/FixtureItem';
 import { useParams, getParam, router, goToFixture } from '../../../src/utils/router';
 
 export default function TeamFixturesScreen() {

@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 
 import Header from '../../src/components/common/Header';
-import FixtureDetails from '../../src/components/Leagues/FixtureDetails';
+import FixtureDetails from '../../src/components/leagues/FixtureDetails';
 
 export default function FixtureDetailsScreen() {
   const { id } = useLocalSearchParams();

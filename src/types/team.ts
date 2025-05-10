@@ -1,12 +1,14 @@
 // src/types/team.ts
 
 export interface Team {
+  colors: string;
   id: string;
   name: string;
   shortName: string;
-  logo?: string;  // Make logo optional with the ? operator
+  logoUrl?: string;  // Make logo optional with the ? operator
   type: 'national' | 'club';
   division: string;
+  coach?: string;  
   colorPrimary?: string;
   colorSecondary?: string;
   venue?: string;
