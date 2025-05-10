@@ -1,6 +1,6 @@
 module.exports = {
-    name: "CIFAApp",
-    slug: "CIFAApp",
+    name: "Cifa Mobile App",
+    slug: "cifa-mobile-app",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
@@ -43,5 +43,11 @@ module.exports = {
       firebaseMessagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
       firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
       firebaseMeasurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
+
+      eas: {
+      projectId: "f3f0c936-d5b2-4a7f-8884-3b00ff83d6e1"
+      },
+      owner: "cifa"
     }
+    
   };
