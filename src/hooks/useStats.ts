@@ -15,6 +15,12 @@ import { getTeamFixtures } from '../services/firebase/leagues';
 import { getPlayerById } from '../services/firebase/teams';
 import { Team } from '../types/team';
 
+// Create cache objects to store fetched data and minimize duplicate requests
+const topScorersCache: Record<string, TopScorer[]> = {};
+const teamStatsCache: Record<string, TeamStats> = {};
+const teamComparisonCache: Record<string, TeamComparison> = {};
+const teamRankingsCache: Record<string, any[]> = {};
+
 export const useStats = () => {
   const [topScorers, setTopScorers] = useState<TopScorer[]>([]);
   const [teamStats, setTeamStats] = useState<TeamStats | null>(null);
@@ -33,14 +39,26 @@ export const useStats = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch top scorers for a league
-  const fetchTopScorers = useCallback(async (categoryId: string, limit?: number) => {
+  const fetchTopScorers = useCallback(async (categoryId: string, limit?: number, forceRefresh = false) => {
+    // Create a cache key
+    const cacheKey = `${categoryId}-${limit || 'default'}`;
+    
+    // Check if we have cached data and not forcing refresh
+    if (!forceRefresh && topScorersCache[cacheKey] && topScorersCache[cacheKey].length > 0) {
+      setTopScorers(topScorersCache[cacheKey]);
+      return topScorersCache[cacheKey];
+    }
+    
     try {
       setLoading(true);
       setError(null);
       
       const scorers = await getTopScorers(categoryId, limit);
-      setTopScorers(scorers);
       
+      // Cache the results
+      topScorersCache[cacheKey] = scorers;
+      
+      setTopScorers(scorers);
       setLoading(false);
       return scorers;
     } catch (err) {
@@ -52,32 +70,55 @@ export const useStats = () => {
   }, []);
 
   // Fetch stats for a specific team
-  const fetchTeamStats = useCallback(async (teamId: string, leagueId?: string) => {
+  const fetchTeamStats = useCallback(async (teamId: string, forceRefresh = false, leagueId?: string) => {
+    // Create a cache key
+    const cacheKey = `${teamId}-${leagueId || 'default'}`;
+    
+    // Check if we have cached data and not forcing refresh
+    if (!forceRefresh && teamStatsCache[cacheKey]) {
+      setTeamStats(teamStatsCache[cacheKey]);
+      return teamStatsCache[cacheKey];
+    }
+    
     try {
       setLoading(true);
       setError(null);
       
-      // Try to get stats from Firestore first
+      // First, try to get stats from Firestore
       let stats = await getTeamStats(teamId, leagueId);
       
       // If no stats document exists, calculate from fixtures
       if (!stats) {
-        const fixtures = await getTeamFixtures(teamId);
-        const calculatedStats = await calculateTeamStats(teamId, fixtures);
+        console.log('No team stats found in Firestore, calculating from fixtures...');
         
-        // Use calculated stats with team ID but not as a full TeamStats object
-        stats = {
-          id: 'calculated',
-          teamId,
-          teamName: '', // Would need to fetch team info to get this
-          ...calculatedStats,
-          leagueId: leagueId || '',
-          season: '',
-          lastUpdated: new Date() as any
-        } as TeamStats;
+        const fixtures = await getTeamFixtures(teamId);
+        if (fixtures.length > 0) {
+          console.log(`Found ${fixtures.length} fixtures for team ${teamId}`);
+          const calculatedStats = await calculateTeamStats(teamId, fixtures);
+          
+          // Use calculated stats with team ID but not as a full TeamStats object
+          stats = {
+            id: 'calculated',
+            teamId,
+            teamName: '', // Would need to fetch team info to get this
+            ...calculatedStats,
+            leagueId: leagueId || '',
+            season: '',
+            lastUpdated: new Date() as any
+          } as TeamStats;
+          
+          console.log('Calculated stats:', stats);
+        } else {
+          console.log('No fixtures found for this team');
+        }
       }
       
-      setTeamStats(stats);
+      if (stats) {
+        // Cache the results
+        teamStatsCache[cacheKey] = stats;
+        setTeamStats(stats);
+      }
+      
       setLoading(false);
       return stats;
     } catch (err) {
@@ -89,13 +130,27 @@ export const useStats = () => {
   }, []);
 
   // Fetch comparison between two teams
-  const fetchTeamComparison = useCallback(async (teamAId: string, teamBId: string, leagueId?: string) => {
+  const fetchTeamComparison = useCallback(async (teamAId: string, teamBId: string, forceRefresh = false, leagueId?: string) => {
+    // Create a cache key
+    const cacheKey = `${teamAId}-${teamBId}-${leagueId || 'default'}`;
+    
+    // Check if we have cached data and not forcing refresh
+    if (!forceRefresh && teamComparisonCache[cacheKey]) {
+      setComparisonStats(teamComparisonCache[cacheKey]);
+      return teamComparisonCache[cacheKey];
+    }
+    
     try {
       setLoading(true);
       setError(null);
       
       const comparison = await getTeamComparison(teamAId, teamBId, leagueId);
-      setComparisonStats(comparison);
+      
+      if (comparison) {
+        // Cache the results
+        teamComparisonCache[cacheKey] = comparison;
+        setComparisonStats(comparison);
+      }
       
       setLoading(false);
       return comparison;
@@ -111,8 +166,18 @@ export const useStats = () => {
   const fetchTeamRankings = useCallback(async (
     leagueId: string,
     categories: ('goals' | 'defense' | 'cleanSheets' | 'possession')[],
-    limit?: number
+    limit?: number,
+    forceRefresh = false
   ) => {
+    // Create a cache key
+    const cacheKey = `${leagueId}-${categories.join('-')}-${limit || 'default'}`;
+    
+    // Check if we have cached data and not forcing refresh
+    if (!forceRefresh && teamRankingsCache[cacheKey]) {
+      setTeamRankings(teamRankingsCache[cacheKey]);
+      return teamRankingsCache[cacheKey];
+    }
+    
     try {
       setLoading(true);
       setError(null);
@@ -127,6 +192,9 @@ export const useStats = () => {
         })
       );
       
+      // Cache the results
+      teamRankingsCache[cacheKey] = rankings;
+      
       setTeamRankings(rankings);
       setLoading(false);
       return rankings;
@@ -138,7 +206,33 @@ export const useStats = () => {
     }
   }, []);
 
-  // Fetch player of the month
+  // Clear all caches (useful when logging out or for debugging)
+  const clearCaches = useCallback(() => {
+    Object.keys(topScorersCache).forEach(key => {
+      delete topScorersCache[key];
+    });
+    
+    Object.keys(teamStatsCache).forEach(key => {
+      delete teamStatsCache[key];
+    });
+    
+    Object.keys(teamComparisonCache).forEach(key => {
+      delete teamComparisonCache[key];
+    });
+    
+    Object.keys(teamRankingsCache).forEach(key => {
+      delete teamRankingsCache[key];
+    });
+    
+    setTopScorers([]);
+    setTeamStats(null);
+    setComparisonStats(null);
+    setTeamRankings([]);
+    setPlayerOfMonth(null);
+    setLoading(false);
+    setError(null);
+  }, []);
+
   return {
     topScorers,
     teamStats,
@@ -151,6 +245,7 @@ export const useStats = () => {
     fetchTeamStats,
     fetchTeamComparison,
     fetchTeamRankings,
-    setPlayerOfMonth
+    setPlayerOfMonth,
+    clearCaches
   };
 };

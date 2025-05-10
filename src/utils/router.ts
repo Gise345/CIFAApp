@@ -1,4 +1,4 @@
-// src/utils/router.ts
+// src/utils/router.ts - Fixed for SDK 53
 import * as ExpoRouter from 'expo-router';
 
 // Export the router instance

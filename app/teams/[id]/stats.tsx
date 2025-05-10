@@ -1,15 +1,18 @@
-// CIFAMobileApp/app/teams/[id]/stats.tsx
+// app/teams/[id]/stats.tsx
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
   Text, 
   ScrollView, 
-  RefreshControl
+  RefreshControl,
+  ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Feather } from '@expo/vector-icons';
 
 import { useTeams } from '../../../src/hooks/useTeams';
+import { useStats } from '../../../src/hooks/useStats';
 import { useParams, getParam } from '../../../src/utils/router';
 import Card from '../../../src/components/common/Card';
 import TeamComparison from '../../../src/components/teams/TeamComparison';
@@ -19,29 +22,42 @@ export default function TeamStatsScreen() {
   const params = useParams();
   const teamId = getParam(params, 'id') || '';
   
-  const { selectedTeam, teamFixtures, loading, error, loadTeamData, getFixturesByStatus } = useTeams();
-  const [refreshing, setRefreshing] = useState(false);
+  const { selectedTeam, teamFixtures, loading: teamsLoading, error: teamsError, loadTeamData } = useTeams();
+  const { fetchTeamStats, loading: statsLoading, error: statsError } = useStats();
   
-  // Load team data on mount
+  const [refreshing, setRefreshing] = useState(false);
+  const [stats, setStats] = useState<any>(null);
+  const [calculatedStats, setCalculatedStats] = useState<any>(null);
+  
+  // Load team data and stats on mount
   useEffect(() => {
-    if (teamId) {
-      loadTeamData(teamId);
-    }
+    const loadData = async () => {
+      if (!teamId) return;
+      
+      try {
+        // First, load the team data to get team details
+        await loadTeamData(teamId);
+        
+        // Then, fetch the team stats from Firestore
+        const teamStats = await fetchTeamStats(teamId);
+        if (teamStats) {
+          setStats(teamStats);
+        } else {
+          // If no stats found in Firestore, calculate them from fixtures
+          calculateStatsFromFixtures();
+        }
+      } catch (err) {
+        console.error('Error loading team stats:', err);
+      }
+    };
+    
+    loadData();
   }, [teamId]);
   
-  // Handle refresh
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    if (teamId) {
-      await loadTeamData(teamId);
-    }
-    setRefreshing(false);
-  };
-  
-  // Calculate team stats from fixtures
-  const calculateStats = () => {
+  // Calculate stats from fixtures if Firestore data is not available
+  const calculateStatsFromFixtures = () => {
     if (!teamFixtures || teamFixtures.length === 0) {
-      return {
+      setCalculatedStats({
         matches: 0,
         wins: 0,
         draws: 0,
@@ -51,7 +67,8 @@ export default function TeamStatsScreen() {
         cleanSheets: 0,
         winPercentage: 0,
         form: [] as string[]
-      };
+      });
+      return;
     }
     
     let matches = 0;
@@ -104,20 +121,54 @@ export default function TeamStatsScreen() {
     // Limit form to last 5 matches
     const recentForm = form.slice(0, 5);
     
-    return {
+    const calculatedStats = {
       matches,
       wins,
       draws,
       losses,
       goalsFor,
       goalsAgainst,
+      goalDifference: goalsFor - goalsAgainst,
       cleanSheets,
       winPercentage: Math.round(winPercentage),
       form: recentForm
     };
+    
+    setCalculatedStats(calculatedStats);
   };
   
-  const stats = calculateStats();
+  // Handle refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    if (teamId) {
+      await loadTeamData(teamId, true); // Force refresh team data
+      const teamStats = await fetchTeamStats(teamId, true); // Force refresh stats
+      if (teamStats) {
+        setStats(teamStats);
+      } else {
+        calculateStatsFromFixtures();
+      }
+    }
+    setRefreshing(false);
+  };
+  
+  // Get the stats to display (either from Firestore or calculated)
+  const displayStats = stats || calculatedStats;
+  
+  // Loading state
+  const isLoading = (teamsLoading || statsLoading) && !refreshing;
+  
+  // Error handling
+  const error = teamsError || statsError;
+  
+  if (isLoading && !selectedTeam && !displayStats) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={styles.loadingText}>Loading team statistics...</Text>
+      </View>
+    );
+  }
   
   return (
     <LinearGradient
@@ -140,154 +191,167 @@ export default function TeamStatsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
           }
         >
-          {/* Season Statistics */}
-          <Card style={styles.statsCard}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>SEASON STATISTICS</Text>
-            </View>
-            
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.matches}</Text>
-                <Text style={styles.statLabel}>Matches</Text>
+          {error ? (
+            <Card style={styles.errorCard}>
+              <View style={styles.errorContainer}>
+                <Feather name="alert-circle" size={32} color="#ef4444" />
+                <Text style={styles.errorText}>{error}</Text>
               </View>
-              
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.wins}</Text>
-                <Text style={styles.statLabel}>Wins</Text>
-              </View>
-              
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.draws}</Text>
-                <Text style={styles.statLabel}>Draws</Text>
-              </View>
-              
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.losses}</Text>
-                <Text style={styles.statLabel}>Losses</Text>
-              </View>
-            </View>
-            
-            {/* Win Percentage */}
-            <View style={styles.percentageContainer}>
-              <View style={styles.percentageHeader}>
-                <Text style={styles.percentageLabel}>Win Percentage</Text>
-                <Text style={styles.percentageValue}>{stats.winPercentage}%</Text>
-              </View>
-              <View style={styles.progressBarContainer}>
-                <View 
-                  style={[
-                    styles.progressBar, 
-                    { 
-                      width: `${stats.winPercentage}%`,
-                      backgroundColor: selectedTeam?.colorPrimary || '#2563eb'
-                    }
-                  ]} 
-                />
-              </View>
-            </View>
-            
-            {/* Form */}
-            <View style={styles.formContainer}>
-              <Text style={styles.formLabel}>Recent Form</Text>
-              <View style={styles.formBadges}>
-                {stats.form.length > 0 ? (
-                  stats.form.map((result, index) => (
+            </Card>
+          ) : (
+            <>
+              {/* Season Statistics */}
+              <Card style={styles.statsCard}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>SEASON STATISTICS</Text>
+                </View>
+                
+                <View style={styles.statsGrid}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{displayStats?.matches || 0}</Text>
+                    <Text style={styles.statLabel}>Matches</Text>
+                  </View>
+                  
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{displayStats?.wins || 0}</Text>
+                    <Text style={styles.statLabel}>Wins</Text>
+                  </View>
+                  
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{displayStats?.draws || 0}</Text>
+                    <Text style={styles.statLabel}>Draws</Text>
+                  </View>
+                  
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{displayStats?.losses || 0}</Text>
+                    <Text style={styles.statLabel}>Losses</Text>
+                  </View>
+                </View>
+                
+                {/* Win Percentage */}
+                <View style={styles.percentageContainer}>
+                  <View style={styles.percentageHeader}>
+                    <Text style={styles.percentageLabel}>Win Percentage</Text>
+                    <Text style={styles.percentageValue}>{displayStats?.winPercentage || 0}%</Text>
+                  </View>
+                  <View style={styles.progressBarContainer}>
                     <View 
-                      key={index} 
                       style={[
-                        styles.formBadge,
-                        result === 'W' && styles.winBadge,
-                        result === 'D' && styles.drawBadge,
-                        result === 'L' && styles.lossBadge
-                      ]}
-                    >
-                      <Text style={styles.formBadgeText}>{result}</Text>
+                        styles.progressBar, 
+                        { 
+                          width: `${displayStats?.winPercentage || 0}%`,
+                          backgroundColor: selectedTeam?.colorPrimary || '#2563eb'
+                        }
+                      ]} 
+                    />
+                  </View>
+                </View>
+                
+                {/* Form */}
+                <View style={styles.formContainer}>
+                  <Text style={styles.formLabel}>Recent Form</Text>
+                  <View style={styles.formBadges}>
+                    {(displayStats?.form?.length || 0) > 0 ? (
+                      displayStats.form.map((result: string, index: number) => (
+                        <View 
+                          key={index} 
+                          style={[
+                            styles.formBadge,
+                            result === 'W' && styles.winBadge,
+                            result === 'D' && styles.drawBadge,
+                            result === 'L' && styles.lossBadge
+                          ]}
+                        >
+                          <Text style={styles.formBadgeText}>{result}</Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.noFormText}>No recent matches</Text>
+                    )}
+                  </View>
+                </View>
+              </Card>
+              
+              {/* Scoring Statistics */}
+              <Card style={styles.statsCard}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>GOALS</Text>
+                </View>
+                
+                <View style={styles.statsGrid}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{displayStats?.goalsFor || 0}</Text>
+                    <Text style={styles.statLabel}>Scored</Text>
+                  </View>
+                  
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{displayStats?.goalsAgainst || 0}</Text>
+                    <Text style={styles.statLabel}>Conceded</Text>
+                  </View>
+                  
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{displayStats?.goalDifference || 0}</Text>
+                    <Text style={styles.statLabel}>Difference</Text>
+                  </View>
+                  
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{displayStats?.cleanSheets || 0}</Text>
+                    <Text style={styles.statLabel}>Clean Sheets</Text>
+                  </View>
+                </View>
+                
+                {/* Goals Per Match */}
+                <View style={styles.averageContainer}>
+                  <View style={styles.averageItem}>
+                    <View style={styles.averageHeader}>
+                      <Text style={styles.averageLabel}>Goals Scored Per Match</Text>
+                      <Text style={styles.averageValue}>
+                        {displayStats?.matches > 0 
+                          ? (displayStats.goalsFor / displayStats.matches).toFixed(1) 
+                          : '0.0'}
+                      </Text>
                     </View>
-                  ))
-                ) : (
-                  <Text style={styles.noFormText}>No recent matches</Text>
-                )}
-              </View>
-            </View>
-          </Card>
-          
-          {/* Scoring Statistics */}
-          <Card style={styles.statsCard}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>GOALS</Text>
-            </View>
-            
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.goalsFor}</Text>
-                <Text style={styles.statLabel}>Scored</Text>
-              </View>
-              
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.goalsAgainst}</Text>
-                <Text style={styles.statLabel}>Conceded</Text>
-              </View>
-              
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.goalsFor - stats.goalsAgainst}</Text>
-                <Text style={styles.statLabel}>Difference</Text>
-              </View>
-              
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.cleanSheets}</Text>
-                <Text style={styles.statLabel}>Clean Sheets</Text>
-              </View>
-            </View>
-            
-            {/* Goals Per Match */}
-            <View style={styles.averageContainer}>
-              <View style={styles.averageItem}>
-                <View style={styles.averageHeader}>
-                  <Text style={styles.averageLabel}>Goals Scored Per Match</Text>
-                  <Text style={styles.averageValue}>
-                    {stats.matches > 0 ? (stats.goalsFor / stats.matches).toFixed(1) : '0.0'}
-                  </Text>
+                    <View style={styles.progressBarContainer}>
+                      <View 
+                        style={[
+                          styles.progressBar, 
+                          { 
+                            width: `${Math.min(((displayStats?.goalsFor || 0) / Math.max(displayStats?.matches || 1, 1)) * 20, 100)}%`,
+                            backgroundColor: '#059669'
+                          }
+                        ]} 
+                      />
+                    </View>
+                  </View>
+                  
+                  <View style={styles.averageItem}>
+                    <View style={styles.averageHeader}>
+                      <Text style={styles.averageLabel}>Goals Conceded Per Match</Text>
+                      <Text style={styles.averageValue}>
+                        {displayStats?.matches > 0 
+                          ? (displayStats.goalsAgainst / displayStats.matches).toFixed(1) 
+                          : '0.0'}
+                      </Text>
+                    </View>
+                    <View style={styles.progressBarContainer}>
+                      <View 
+                        style={[
+                          styles.progressBar, 
+                          { 
+                            width: `${Math.min(((displayStats?.goalsAgainst || 0) / Math.max(displayStats?.matches || 1, 1)) * 20, 100)}%`,
+                            backgroundColor: '#ef4444'
+                          }
+                        ]} 
+                      />
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.progressBarContainer}>
-                  <View 
-                    style={[
-                      styles.progressBar, 
-                      { 
-                        width: `${Math.min((stats.goalsFor / stats.matches) * 20, 100)}%`,
-                        backgroundColor: '#059669'
-                      }
-                    ]} 
-                  />
-                </View>
-              </View>
+              </Card>
               
-              <View style={styles.averageItem}>
-                <View style={styles.averageHeader}>
-                  <Text style={styles.averageLabel}>Goals Conceded Per Match</Text>
-                  <Text style={styles.averageValue}>
-                    {stats.matches > 0 ? (stats.goalsAgainst / stats.matches).toFixed(1) : '0.0'}
-                  </Text>
-                </View>
-                <View style={styles.progressBarContainer}>
-                  <View 
-                    style={[
-                      styles.progressBar, 
-                      { 
-                        width: `${Math.min((stats.goalsAgainst / stats.matches) * 20, 100)}%`,
-                        backgroundColor: '#ef4444'
-                      }
-                    ]} 
-                  />
-                </View>
-              </View>
-            </View>
-          </Card>
-          
-          {/* Team Comparison */}
-          <TeamComparison teamAId={teamId} />
-          
-          {/* Add more stat cards as needed */}
+              {/* Team Comparison */}
+              <TeamComparison teamAId={teamId} />
+            </>
+          )}
         </ScrollView>
       </View>
     </LinearGradient>
@@ -328,6 +392,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  errorCard: {
+    padding: 20,
+    marginBottom: 16,
+    borderRadius: 12,
   },
   cardHeader: {
     paddingHorizontal: 16,
@@ -451,5 +520,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#111827',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6b7280',
+  },
+  errorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#ef4444',
+    textAlign: 'center',
   },
 });

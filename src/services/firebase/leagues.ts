@@ -66,6 +66,7 @@ export interface MatchEvent {
 }
 
 export interface LeagueFixture {
+  competition: string;
   id: string;
   leagueId: string;
   homeTeamId: string;
