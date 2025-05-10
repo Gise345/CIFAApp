@@ -1,3 +1,4 @@
+// src/components/teams/TeamComparison.tsx
 import React, { useState, useEffect } from 'react';
 import { 
   View,
@@ -5,7 +6,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  ScrollView
+  Modal,
+  SafeAreaView,
+  FlatList
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
@@ -14,6 +17,7 @@ import { useStats } from '../../hooks/useStats';
 import Card from '../common/Card';
 import TeamLogo from '../common/TeamLogo';
 import { Team } from '../../types/team';
+import { getTeams } from '../../services/firebase/teams';
 
 interface TeamComparisonProps {
   teamAId: string;
@@ -29,7 +33,8 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamAId, teamBId: initi
   const [teamBId, setTeamBId] = useState<string | undefined>(initialTeamBId);
   const [comparison, setComparison] = useState<any>(null);
   const [teamOptions, setTeamOptions] = useState<Team[]>([]);
-  const [showTeamSelector, setShowTeamSelector] = useState(!initialTeamBId);
+  const [loadingTeamOptions, setLoadingTeamOptions] = useState(false);
+  const [teamSelectorVisible, setTeamSelectorVisible] = useState(false);
   const [loadingTeams, setLoadingTeams] = useState(false);
   
   // Load teams data
@@ -52,8 +57,6 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamAId, teamBId: initi
           setComparison(comparisonData);
         }
         
-       
-        
         setLoadingTeams(false);
       } catch (err) {
         console.error('Error loading teams for comparison:', err);
@@ -62,22 +65,52 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamAId, teamBId: initi
     };
     
     loadTeams();
-  }, [teamAId, teamBId]);
+  }, [teamAId, teamBId, fetchTeamById, fetchTeamComparison]);
+  
+  // Load team options when modal is shown
+  useEffect(() => {
+    if (teamSelectorVisible && teamOptions.length === 0) {
+      const fetchTeamOptions = async () => {
+        try {
+          setLoadingTeamOptions(true);
+          
+          // Get team A details to know its division
+          const teamADetails = await fetchTeamById(teamAId);
+          
+          if (teamADetails) {
+            // Fetch teams from the same division
+            const allTeams = await getTeams('club', teamADetails.division);
+            
+            // Filter out the current team A
+            const filteredTeams = allTeams.filter(team => team.id !== teamAId);
+            setTeamOptions(filteredTeams);
+          }
+          
+          setLoadingTeamOptions(false);
+        } catch (err) {
+          console.error('Error loading team options:', err);
+          setLoadingTeamOptions(false);
+        }
+      };
+      
+      fetchTeamOptions();
+    }
+  }, [teamSelectorVisible, teamOptions.length, teamAId, fetchTeamById]);
   
   // Select a team to compare with
   const selectTeamB = async (team: Team) => {
     setTeamB(team);
     setTeamBId(team.id);
-    setShowTeamSelector(false);
+    setTeamSelectorVisible(false);
     
     // Fetch comparison data
     const comparisonData = await fetchTeamComparison(teamAId, team.id);
     setComparison(comparisonData);
   };
   
-  // Toggle team selector
+  // Toggle team selector modal
   const toggleTeamSelector = () => {
-    setShowTeamSelector(!showTeamSelector);
+    setTeamSelectorVisible(!teamSelectorVisible);
   };
   
   // Render loading state
@@ -103,6 +136,70 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamAId, teamBId: initi
       </Card>
     );
   }
+
+  // Instead of using FlatList for comparison stats, we'll use manual rendering
+  const renderStatsItem = (stat: any, index: number) => {
+    return (
+      <View 
+        key={`stat-${index}`}
+        style={[
+          styles.statRow,
+          index < (comparison?.comparisonStats?.length || 0) - 1 && styles.statRowBorder
+        ]}
+      >
+        {/* Team A Value */}
+        <Text 
+          style={[
+            styles.statValue,
+            stat.winner === 'A' && styles.winnerValue
+          ]}
+        >
+          {stat.teamA}
+        </Text>
+        
+        {/* Stat Label */}
+        <View style={styles.statLabelContainer}>
+          <Text style={styles.statLabel}>{stat.label}</Text>
+          <View style={styles.comparisonBar}>
+            {typeof stat.teamA === 'number' && typeof stat.teamB === 'number' ? (
+              <>
+                <View 
+                  style={[
+                    styles.barA,
+                    { 
+                      flex: stat.teamA || 1,
+                      backgroundColor: teamA?.colorPrimary || '#2563eb'
+                    }
+                  ]}
+                />
+                <View 
+                  style={[
+                    styles.barB,
+                    { 
+                      flex: stat.teamB || 1,
+                      backgroundColor: teamB?.colorPrimary || '#ef4444'
+                    }
+                  ]}
+                />
+              </>
+            ) : (
+              <View style={styles.noBarData} />
+            )}
+          </View>
+        </View>
+        
+        {/* Team B Value */}
+        <Text 
+          style={[
+            styles.statValue,
+            stat.winner === 'B' && styles.winnerValue
+          ]}
+        >
+          {stat.teamB}
+        </Text>
+      </View>
+    );
+  };
 
   return (
     <Card style={styles.card}>
@@ -156,36 +253,66 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamAId, teamBId: initi
         )}
       </View>
       
-      {/* Team Selector */}
-      {showTeamSelector && (
-        <View style={styles.teamSelectorContainer}>
-          <Text style={styles.selectorTitle}>Select a team to compare</Text>
-          <ScrollView style={styles.teamsList}>
-            {teamOptions.map(team => (
-              <TouchableOpacity
-                key={team.id}
-                style={styles.teamOption}
-                onPress={() => selectTeamB(team)}
+      {/* Team Selector Modal - This moves the FlatList out of the ScrollView */}
+      <Modal
+        visible={teamSelectorVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setTeamSelectorVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select a team to compare</Text>
+              <TouchableOpacity 
+                style={styles.modalCloseButton} 
+                onPress={() => setTeamSelectorVisible(false)}
               >
-                <TeamLogo
-                  teamId={team.id}
-                  teamName={team.name}
-                  teamCode={getTeamInitials(team.name)}
-                  size="small"
-                  colorPrimary={team.colorPrimary}
-                />
-                <Text style={styles.teamOptionName}>{team.name}</Text>
+                <Feather name="x" size={24} color="#6b7280" />
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
+            </View>
+            
+            {loadingTeamOptions ? (
+              <View style={styles.loadingOptionsContainer}>
+                <ActivityIndicator size="small" color="#2563eb" />
+                <Text style={styles.loadingText}>Loading teams...</Text>
+              </View>
+            ) : teamOptions.length > 0 ? (
+              <FlatList
+                data={teamOptions}
+                keyExtractor={(item) => item.id}
+                style={styles.teamsList}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.teamOption}
+                    onPress={() => selectTeamB(item)}
+                  >
+                    <TeamLogo
+                      teamId={item.id}
+                      teamName={item.name}
+                      teamCode={getTeamInitials(item.name)}
+                      size="small"
+                      colorPrimary={item.colorPrimary}
+                    />
+                    <Text style={styles.teamOptionName}>{item.name}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            ) : (
+              <View style={styles.noTeamsContainer}>
+                <Feather name="info" size={20} color="#6b7280" />
+                <Text style={styles.noTeamsText}>No other teams available in this division</Text>
+              </View>
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
       
       {/* Comparison Stats */}
-      {!showTeamSelector && teamB && comparison && (
+      {teamB && comparison && (
         <View style={styles.statsContainer}>
           {/* Display Head-to-Head info at the top */}
-          {comparison.headToHead.matches > 0 && (
+          {comparison.headToHead && comparison.headToHead.matches > 0 && (
             <View style={styles.headToHeadContainer}>
               <Text style={styles.h2hTitle}>Head-to-Head</Text>
               <View style={styles.h2hStats}>
@@ -208,72 +335,13 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamAId, teamBId: initi
             </View>
           )}
           
-          {/* Display comparison stats */}
-          {comparison.comparisonStats.map((stat: any, index: number) => (
-            <View 
-              key={stat.label} 
-              style={[
-                styles.statRow,
-                index < comparison.comparisonStats.length - 1 && styles.statRowBorder
-              ]}
-            >
-              {/* Team A Value */}
-              <Text 
-                style={[
-                  styles.statValue,
-                  stat.winner === 'A' && styles.winnerValue
-                ]}
-              >
-                {stat.teamA}
-              </Text>
-              
-              {/* Stat Label */}
-              <View style={styles.statLabelContainer}>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-                <View style={styles.comparisonBar}>
-                  {typeof stat.teamA === 'number' && typeof stat.teamB === 'number' ? (
-                    <>
-                      <View 
-                        style={[
-                          styles.barA,
-                          { 
-                            flex: stat.teamA || 1,
-                            backgroundColor: teamA?.colorPrimary || '#2563eb'
-                          }
-                        ]}
-                      />
-                      <View 
-                        style={[
-                          styles.barB,
-                          { 
-                            flex: stat.teamB || 1,
-                            backgroundColor: teamB?.colorPrimary || '#ef4444'
-                          }
-                        ]}
-                      />
-                    </>
-                  ) : (
-                    <View style={styles.noBarData} />
-                  )}
-                </View>
-              </View>
-              
-              {/* Team B Value */}
-              <Text 
-                style={[
-                  styles.statValue,
-                  stat.winner === 'B' && styles.winnerValue
-                ]}
-              >
-                {stat.teamB}
-              </Text>
-            </View>
-          ))}
+          {/* Display comparison stats with manual rendering instead of FlatList */}
+          {comparison.comparisonStats?.map(renderStatsItem)}
         </View>
       )}
       
       {/* If team B is selected but no comparison data */}
-      {!showTeamSelector && teamB && !comparison && (
+      {teamB && !comparison && (
         <View style={styles.emptyContainer}>
           <Feather name="bar-chart-2" size={24} color="#9ca3af" />
           <Text style={styles.emptyText}>No comparison data available</Text>
@@ -377,24 +445,47 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     fontWeight: '500',
   },
-  teamSelectorContainer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  selectorTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#4b5563',
-    marginBottom: 12,
+  modalContent: {
+    backgroundColor: 'white',
+    margin: 20,
+    borderRadius: 12,
+    padding: 16,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  loadingOptionsContainer: {
+    padding: 20,
+    alignItems: 'center',
   },
   teamsList: {
-    maxHeight: 200,
+    maxHeight: 400,
   },
   teamOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
@@ -402,6 +493,18 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     fontSize: 14,
     color: '#111827',
+  },
+  noTeamsContainer: {
+    padding: 20,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  noTeamsText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
   },
   statsContainer: {
     padding: 16,

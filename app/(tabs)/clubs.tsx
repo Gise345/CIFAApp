@@ -198,6 +198,7 @@ const mockTeams: Team[] = [
 ];
 
 export default function ClubsScreen() {
+  // Use the imported router directly
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mensTeams, setMensTeams] = useState<Team[]>([]);

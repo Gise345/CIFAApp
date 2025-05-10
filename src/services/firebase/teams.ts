@@ -1,4 +1,4 @@
-// CIFAMobileApp/src/services/firebase/teams.ts
+// src/services/firebase/teams.ts
 import { 
   collection, 
   query, 
@@ -11,40 +11,26 @@ import {
   deleteDoc,
   orderBy,
   limit as firestoreLimit,
-  Firestore,
-  DocumentData
+  Firestore
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage';
-import { firestore, firestore as firestoreInstance, storage as storageInstance } from './config';
-import { Team, Player } from '../../types/team';
-import { getTeamFixtures as getFixturesForTeam } from '../../services/firebase/leagues';
+import { firestore, storage } from './config';
 import { uploadTeamLogo } from './storage';
-
-
-// Use Firestore with proper typing
-const getFirestore = (): Firestore => {
-  if (!firestoreInstance) {
-    throw new Error('Firestore not initialized');
-  }
-  return firestoreInstance;
-};
-
-// Use Storage with proper typing
-const getStorage = (): FirebaseStorage => {
-  if (!storageInstance) {
-    throw new Error('Firebase Storage not initialized');
-  }
-  return storageInstance;
-};
+import { Team, Player } from '../../types/team';
+import { getTeamFixtures as getFixturesForTeam } from './leagues';
 
 /**
  * Get teams with optional filtering by type and division
  */
 export const getTeams = async (type?: string, division?: string, limit?: number): Promise<Team[]> => {
   try {
+    // Make sure Firestore is initialized
+    if (!firestore) {
+      console.error('Firestore not initialized');
+      return [];
+    }
+
     console.log(`Fetching teams with type: ${type}, division: ${division}`);
     
-    const firestore = getFirestore();
     const teamsCollection = collection(firestore, 'teams');
     let teamsQuery;
 
@@ -94,7 +80,7 @@ export const getTeams = async (type?: string, division?: string, limit?: number)
     });
   } catch (error) {
     console.error('Error fetching teams:', error);
-    throw error;
+    return []; // Return empty array instead of throwing to prevent UI errors
   }
 };
 
@@ -110,8 +96,13 @@ export const getNationalTeams = async (): Promise<Team[]> => {
  */
 export const getTeamById = async (teamId: string): Promise<Team | null> => {
   try {
+    // Make sure Firestore is initialized
+    if (!firestore) {
+      console.error('Firestore not initialized');
+      return null;
+    }
+
     console.log(`Fetching team with ID: ${teamId}`);
-    const firestore = getFirestore();
     const teamDoc = await getDoc(doc(firestore, 'teams', teamId));
     
     if (!teamDoc.exists()) {
@@ -126,7 +117,7 @@ export const getTeamById = async (teamId: string): Promise<Team | null> => {
     } as Team;
   } catch (error) {
     console.error('Error fetching team:', error);
-    throw error;
+    return null; // Return null instead of throwing to prevent UI errors
   }
 };
 
@@ -135,9 +126,14 @@ export const getTeamById = async (teamId: string): Promise<Team | null> => {
  */
 export const getTeamPlayers = async (teamId: string, limit?: number): Promise<Player[]> => {
   try {
+    // Make sure Firestore is initialized
+    if (!firestore) {
+      console.error('Firestore not initialized');
+      return [];
+    }
+
     console.log(`Fetching players for team ID: ${teamId}`);
     
-    const firestore = getFirestore();
     const playersCollection = collection(firestore, 'players');
     let playersQuery = query(
       playersCollection,
@@ -165,7 +161,7 @@ export const getTeamPlayers = async (teamId: string, limit?: number): Promise<Pl
     } as Player));
   } catch (error) {
     console.error('Error fetching team players:', error);
-    throw error;
+    return []; // Return empty array instead of throwing to prevent UI errors
   }
 };
 
@@ -174,8 +170,13 @@ export const getTeamPlayers = async (teamId: string, limit?: number): Promise<Pl
  */
 export const getPlayerById = async (playerId: string): Promise<Player | null> => {
   try {
+    // Make sure Firestore is initialized
+    if (!firestore) {
+      console.error('Firestore not initialized');
+      return null;
+    }
+
     console.log(`Fetching player with ID: ${playerId}`);
-    const firestore = getFirestore();
     const playerDoc = await getDoc(doc(firestore, 'players', playerId));
     
     if (!playerDoc.exists()) {
@@ -189,19 +190,22 @@ export const getPlayerById = async (playerId: string): Promise<Player | null> =>
     } as Player;
   } catch (error) {
     console.error('Error fetching player:', error);
-    throw error;
+    return null; // Return null instead of throwing to prevent UI errors
   }
 };
-
-// Add this function to src/services/firebase/teams.ts
 
 /**
  * Get all data related to a team including league, standings, players, and fixtures
  */
 export const getTeamWithRelatedData = async (teamId: string) => {
   try {
+    // Make sure Firestore is initialized
+    if (!firestore) {
+      console.error('Firestore not initialized');
+      return null;
+    }
+
     console.log(`Fetching all data for team ID: ${teamId}`);
-    const firestore = getFirestore();
     
     // First get the team
     const team = await getTeamById(teamId);
@@ -211,7 +215,7 @@ export const getTeamWithRelatedData = async (teamId: string) => {
       return null;
     }
     
-    // Get related data in parallel
+    // Get related data in parallel for better performance
     const [players, fixtures] = await Promise.all([
       getTeamPlayers(teamId),
       getFixturesForTeam(teamId)
@@ -258,64 +262,19 @@ export const getTeamWithRelatedData = async (teamId: string) => {
     return {
       team,
       players,
-      league,
       fixtures,
+      league,
       standings
     };
   } catch (error) {
     console.error(`Error fetching team data for ${teamId}:`, error);
-    throw error;
-  }
-};
-
-export const getTeamFixtures = async (teamId: string, limit?: number) => {
-  try {
-    console.log(`Fetching fixtures for team ID: ${teamId}`);
-    const firestore = getFirestore();
-    
-    const fixturesQuery = query(
-      collection(firestore, 'matches'),
-      where('teams', 'array-contains', teamId)
-    );
-    
-    const fixturesSnapshot = await getDocs(fixturesQuery);
-    
-    const fixtures = fixturesSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    
-    return fixtures;
-  } catch (error) {
-    console.error(`Error fetching fixtures for team ${teamId}:`, error);
-    return [];
+    return null; // Return null instead of throwing to prevent UI errors
   }
 };
 
 /**
- * Get a league by ID
+ * Update team logo
  */
-export const getLeagueById = async (leagueId: string) => {
-  try {
-    console.log(`Fetching league with ID: ${leagueId}`);
-    const firestore = getFirestore();
-    const leagueDoc = await getDoc(doc(firestore, 'leagues', leagueId));
-    
-    if (!leagueDoc.exists()) {
-      console.log(`League with ID ${leagueId} not found`);
-      return null;
-    }
-    
-    return {
-      id: leagueDoc.id,
-      ...leagueDoc.data()
-    };
-  } catch (error) {
-    console.error('Error fetching league:', error);
-    throw error;
-  }
-};
-
 export const updateTeamLogo = async (teamId: string, imageUri: string): Promise<void> => {
   try {
     // Make sure Firestore is initialized
@@ -344,7 +303,7 @@ export const updateTeamLogo = async (teamId: string, imageUri: string): Promise<
  */
 export const updateTeam = async (teamId: string, teamData: Partial<Team>): Promise<void> => {
   try {
-    // Check if Firestore is initialized
+    // Make sure Firestore is initialized
     if (!firestore) {
       throw new Error('Firestore not initialized');
     }
@@ -366,5 +325,3 @@ export const updateTeam = async (teamId: string, teamData: Partial<Team>): Promi
     throw error;
   }
 };
-
-// Export additional functions as needed for your app

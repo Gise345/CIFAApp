@@ -1,29 +1,54 @@
 // src/components/teams/TeamList.tsx
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { Team } from '../../types/team';
 import { goToTeam } from '../../utils/router';
+import { getTeams } from '../../services/firebase/teams';
 
 interface TeamListProps {
-  teams: Team[];
+  teams?: Team[];
   division?: string;
+  type?: string;
   limit?: number;
   onViewAll?: () => void;
+  showLoading?: boolean;
 }
 
 const TeamList: React.FC<TeamListProps> = ({ 
-  teams,
+  teams: propTeams,
   division,
+  type = 'club',
   limit = 5,
-  onViewAll
+  onViewAll,
+  showLoading = true
 }) => {
-  // Filter teams by division if specified
-  const filteredTeams = division 
-    ? teams.filter(team => team.division === division)
-    : teams;
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [teams, setTeams] = useState<Team[]>(propTeams || []);
+  
+  // If teams are not provided as props, fetch them based on type and division
+  useEffect(() => {
+    if (!propTeams && division) {
+      const fetchTeams = async () => {
+        try {
+          setLoading(true);
+          const teamsData = await getTeams(type, division);
+          setTeams(teamsData);
+          setLoading(false);
+        } catch (err) {
+          console.error(`Error fetching ${division} teams:`, err);
+          setError(`Failed to load teams. Please try again.`);
+          setLoading(false);
+        }
+      };
+      
+      fetchTeams();
+    }
+  }, [division, type, propTeams]);
     
   // Limit number of teams shown
-  const limitedTeams = filteredTeams.slice(0, limit);
+  const limitedTeams = teams.slice(0, limit);
   
   const handleTeamPress = (teamId: string) => {
     // Navigate to team detail page
@@ -72,6 +97,36 @@ const TeamList: React.FC<TeamListProps> = ({
     return colors[index];
   };
 
+  // Render loading state
+  if (loading && showLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color="#2563eb" />
+        <Text style={styles.loadingText}>Loading teams...</Text>
+      </View>
+    );
+  }
+
+  // Render error state
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Feather name="alert-circle" size={24} color="#ef4444" />
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+
+  // Render empty state
+  if (teams.length === 0 && !loading) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Feather name="users" size={24} color="#9ca3af" />
+        <Text style={styles.emptyText}>No teams found</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView 
       horizontal 
@@ -103,7 +158,7 @@ const TeamList: React.FC<TeamListProps> = ({
         </TouchableOpacity>
       ))}
       
-      {onViewAll && filteredTeams.length > limit && (
+      {onViewAll && teams.length > limit && (
         <TouchableOpacity 
           style={styles.viewAllCard}
           onPress={onViewAll}
@@ -123,6 +178,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 8,
   },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  errorContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#ef4444',
+    textAlign: 'center',
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
   teamCard: {
     width: 100,
     marginRight: 16,
@@ -135,6 +222,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    overflow: 'hidden',
   },
   logoImage: {
     width: 60,

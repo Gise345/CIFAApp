@@ -1,16 +1,17 @@
-// CIFAMobileApp/src/hooks/useTeams.ts
-import { useState, useEffect, useCallback } from 'react';
+// src/hooks/useTeams.ts
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  getTeams, 
+  getTeams as fetchTeamsFromFirebase, 
   getTeamById, 
   getTeamPlayers,
-  getTeamWithRelatedData
+  getTeamWithRelatedData,
+  getNationalTeams
 } from '../services/firebase/teams';
 import { 
-  getTeamFixtures, 
+  getTeamFixtures,
   LeagueFixture 
 } from '../services/firebase/leagues';
-import { Team, Player } from '../types/team'; // Import types from types file instead
+import { Team, Player } from '../types/team';
 
 interface TeamsState {
   teams: Team[];
@@ -23,6 +24,10 @@ interface TeamsState {
   teamStanding: any | null;
 }
 
+// Create a cache object to store fetched teams and reduce duplicate requests
+const teamsCache: Record<string, Team[]> = {};
+const teamByIdCache: Record<string, Team> = {};
+const teamPlayersCache: Record<string, Player[]> = {};
 
 export const useTeams = () => {
   const [state, setState] = useState<TeamsState>({
@@ -30,34 +35,116 @@ export const useTeams = () => {
     selectedTeam: null,
     teamPlayers: [],
     teamFixtures: [],
-    selectedLeague: null,  // Add this
-    teamStanding: null,    // Add this
+    selectedLeague: null,
+    teamStanding: null,
     loading: false,
     error: null
   });
 
-  // Fetch all teams
-  const fetchTeams = useCallback(async (type?: string, division?: string) => {
+  // Use refs to track pending requests and avoid race conditions
+  const pendingRequests = useRef<Record<string, boolean>>({});
+
+  // Fetch all teams with optional filtering
+  const fetchTeams = useCallback(async (type?: string, division?: string, forceRefresh = false) => {
+    // Create a cache key based on filters
+    const cacheKey = `${type || 'all'}-${division || 'all'}`;
+    
+    // Check if we have cached data and not forcing refresh
+    if (!forceRefresh && teamsCache[cacheKey] && teamsCache[cacheKey].length > 0) {
+      setState(prev => ({ ...prev, teams: teamsCache[cacheKey], loading: false }));
+      return teamsCache[cacheKey];
+    }
+    
+    // Check if request is already pending
+    if (pendingRequests.current[cacheKey]) {
+      return state.teams;
+    }
+    
+    // Mark request as pending
+    pendingRequests.current[cacheKey] = true;
+    
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
-      const teams = await getTeams(type, division);
+      
+      console.log(`Fetching teams with type: ${type}, division: ${division}`);
+      const teams = await fetchTeamsFromFirebase(type, division);
+      
+      // Cache the results
+      teamsCache[cacheKey] = teams;
+      
+      // Cache individual teams by ID for quicker lookups
+      teams.forEach(team => {
+        teamByIdCache[team.id] = team;
+      });
+      
       setState(prev => ({ ...prev, teams, loading: false }));
+      
+      // Clear pending status
+      delete pendingRequests.current[cacheKey];
+      
       return teams;
     } catch (error) {
+      console.error('Error fetching teams:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch teams';
+      setState(prev => ({ ...prev, error: errorMessage, loading: false }));
+      
+      // Clear pending status
+      delete pendingRequests.current[cacheKey];
+      
+      return [];
+    }
+  }, [state.teams]);
+
+  // Fetch national teams
+  const fetchNationalTeams = useCallback(async (forceRefresh = false) => {
+    try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+      
+      // Check if we have cached data and not forcing refresh
+      if (!forceRefresh && teamsCache['national'] && teamsCache['national'].length > 0) {
+        setState(prev => ({ ...prev, teams: teamsCache['national'], loading: false }));
+        return teamsCache['national'];
+      }
+      
+      const nationalTeams = await getNationalTeams();
+      
+      // Cache the results
+      teamsCache['national'] = nationalTeams;
+      
+      setState(prev => ({ ...prev, teams: nationalTeams, loading: false }));
+      return nationalTeams;
+    } catch (error) {
+      console.error('Error fetching national teams:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch national teams';
       setState(prev => ({ ...prev, error: errorMessage, loading: false }));
       return [];
     }
   }, []);
 
   // Fetch a specific team by ID
-  const fetchTeamById = useCallback(async (teamId: string) => {
+  const fetchTeamById = useCallback(async (teamId: string, forceRefresh = false) => {
+    // Check if we have it in cache and not forcing refresh
+    if (!forceRefresh && teamByIdCache[teamId]) {
+      setState(prev => ({ ...prev, selectedTeam: teamByIdCache[teamId], loading: false }));
+      return teamByIdCache[teamId];
+    }
+    
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
+      
       const team = await getTeamById(teamId);
-      setState(prev => ({ ...prev, selectedTeam: team, loading: false }));
+      
+      if (team) {
+        // Cache the result
+        teamByIdCache[team.id] = team;
+        setState(prev => ({ ...prev, selectedTeam: team, loading: false }));
+      } else {
+        setState(prev => ({ ...prev, selectedTeam: null, loading: false }));
+      }
+      
       return team;
     } catch (error) {
+      console.error('Error fetching team:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch team details';
       setState(prev => ({ ...prev, error: errorMessage, loading: false }));
       return null;
@@ -65,13 +152,25 @@ export const useTeams = () => {
   }, []);
 
   // Fetch players for a team
-  const fetchTeamPlayers = useCallback(async (teamId: string) => {
+  const fetchTeamPlayers = useCallback(async (teamId: string, forceRefresh = false) => {
+    // Check if we have it in cache and not forcing refresh
+    if (!forceRefresh && teamPlayersCache[teamId] && teamPlayersCache[teamId].length > 0) {
+      setState(prev => ({ ...prev, teamPlayers: teamPlayersCache[teamId], loading: false }));
+      return teamPlayersCache[teamId];
+    }
+    
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
+      
       const players = await getTeamPlayers(teamId);
+      
+      // Cache the results
+      teamPlayersCache[teamId] = players;
+      
       setState(prev => ({ ...prev, teamPlayers: players, loading: false }));
       return players;
     } catch (error) {
+      console.error('Error fetching team players:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch team players';
       setState(prev => ({ ...prev, error: errorMessage, loading: false }));
       return [];
@@ -82,10 +181,13 @@ export const useTeams = () => {
   const fetchTeamFixtures = useCallback(async (teamId: string) => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
+      
       const fixtures = await getTeamFixtures(teamId);
+      
       setState(prev => ({ ...prev, teamFixtures: fixtures, loading: false }));
       return fixtures;
     } catch (error) {
+      console.error('Error fetching team fixtures:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch team fixtures';
       setState(prev => ({ ...prev, error: errorMessage, loading: false }));
       return [];
@@ -93,15 +195,26 @@ export const useTeams = () => {
   }, []);
 
   // Load all team data at once
-  const loadTeamData = useCallback(async (teamId: string) => {
+  const loadTeamData = useCallback(async (teamId: string, forceRefresh = false) => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       
+      // Check if we already have team details in cache to avoid extra calls
+      let team: Team | null = null;
+      if (!forceRefresh && teamByIdCache[teamId]) {
+        team = teamByIdCache[teamId];
+      }
+      
+      // Fetch comprehensive data from Firebase
       const result = await getTeamWithRelatedData(teamId);
       
       if (!result) {
         throw new Error('Failed to load team data');
       }
+      
+      // Update caches
+      teamByIdCache[result.team.id] = result.team;
+      teamPlayersCache[teamId] = result.players;
       
       setState(prev => ({
         ...prev,
@@ -115,6 +228,7 @@ export const useTeams = () => {
       
       return result;
     } catch (error) {
+      console.error('Error loading team data:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to load team data';
       setState(prev => ({ ...prev, error: errorMessage, loading: false }));
       return null;
@@ -122,24 +236,68 @@ export const useTeams = () => {
   }, []);
 
   // Helper function to get fixtures by status
-  const getFixturesByStatus = (fixtures: LeagueFixture[]) => {
+  const getFixturesByStatus = (fixtures: LeagueFixture[] = []) => {
+    if (!fixtures.length) {
+      return { liveFixtures: [], upcomingFixtures: [], pastFixtures: [] };
+    }
+    
     const now = new Date();
     
-    const liveFixtures = fixtures.filter(fixture => fixture.status === 'live');
+    // Helper function to safely convert any date format to a JavaScript Date
+    const convertToDate = (dateValue: any): Date => {
+      // For Firestore Timestamp objects
+      if (dateValue && typeof dateValue.toDate === 'function') {
+        return dateValue.toDate();
+      }
+      
+      // For standard Date objects
+      if (dateValue instanceof Date) {
+        return dateValue;
+      }
+      
+      // For string or number date representations
+      try {
+        return new Date(dateValue);
+      } catch (e) {
+        // Fallback to current date if parsing fails
+        console.warn('Invalid date format:', dateValue);
+        return new Date();
+      }
+    };
     
-    const upcomingFixtures = fixtures
-      .filter(fixture => 
-        fixture.status === 'scheduled' && 
-        fixture.date.toDate() > now
-      )
-      .sort((a, b) => a.date.toDate().getTime() - b.date.toDate().getTime());
+    // Find live fixtures
+    const liveFixtures = fixtures.filter(fixture => 
+      fixture.status === 'live'
+    );
     
-    const pastFixtures = fixtures
-      .filter(fixture => 
-        fixture.status === 'completed' || 
-        (fixture.status === 'scheduled' && fixture.date.toDate() < now)
-      )
-      .sort((a, b) => b.date.toDate().getTime() - a.date.toDate().getTime());
+    // Find upcoming fixtures
+    const upcomingFixtures = fixtures.filter(fixture => {
+      if (fixture.status !== 'scheduled') return false;
+      
+      // Convert fixture date to JavaScript Date
+      const fixtureDate = convertToDate(fixture.date);
+      return fixtureDate > now;
+    }).sort((a, b) => {
+      // Sort by date ascending
+      const dateA = convertToDate(a.date);
+      const dateB = convertToDate(b.date);
+      return dateA.getTime() - dateB.getTime();
+    });
+    
+    // Find past fixtures
+    const pastFixtures = fixtures.filter(fixture => {
+      if (fixture.status === 'completed') return true;
+      if (fixture.status !== 'scheduled') return false;
+      
+      // Convert fixture date to JavaScript Date
+      const fixtureDate = convertToDate(fixture.date);
+      return fixtureDate < now;
+    }).sort((a, b) => {
+      // Sort by date descending (most recent first)
+      const dateA = convertToDate(a.date);
+      const dateB = convertToDate(b.date);
+      return dateB.getTime() - dateA.getTime();
+    });
     
     return { liveFixtures, upcomingFixtures, pastFixtures };
   };
@@ -158,15 +316,34 @@ export const useTeams = () => {
     });
   }, []);
 
+  // Clear cache (useful when logging out or for debugging)
+  const clearCache = useCallback(() => {
+    Object.keys(teamsCache).forEach(key => {
+      delete teamsCache[key];
+    });
+    
+    Object.keys(teamByIdCache).forEach(key => {
+      delete teamByIdCache[key];
+    });
+    
+    Object.keys(teamPlayersCache).forEach(key => {
+      delete teamPlayersCache[key];
+    });
+    
+    resetState();
+  }, [resetState]);
+
   return {
     ...state,
     fetchTeams,
+    fetchNationalTeams,
     fetchTeamById,
     fetchTeamPlayers,
     fetchTeamFixtures,
     loadTeamData,
     getFixturesByStatus,
-    resetState
+    resetState,
+    clearCache
   };
 };
 
