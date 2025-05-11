@@ -1,18 +1,18 @@
 // src/utils/router.ts - Fixed for SDK 53
 import * as ExpoRouter from 'expo-router';
 
-// Export the router instance
+// Export the router instance directly
 export const router = ExpoRouter.router;
 
 // Type-safe wrapper for params with SDK 53 compatibility
 export function useParams<T extends Record<string, string> = Record<string, string>>(): T {
   try {
-    // Try to use the SDK 53 method first
-    // @ts-ignore - SDK 53 type definitions are evolving
+    // Try to use the SDK 53 method first (global search params)
+    // @ts-ignore - SDK 53 type definitions may be evolving
     const params = ExpoRouter.useGlobalSearchParams();
     return params as T;
   } catch (error) {
-    console.warn('Error using params in SDK 53:', error);
+    console.warn('Error using global params in SDK 53:', error);
     
     // Fallback to useLocalSearchParams if available
     try {
@@ -20,7 +20,7 @@ export function useParams<T extends Record<string, string> = Record<string, stri
       const localParams = ExpoRouter.useLocalSearchParams();
       return localParams as T;
     } catch (e) {
-      console.warn('Error using localParams in SDK 53:', e);
+      console.warn('Error using local params in SDK 53:', e);
       return {} as T;
     }
   }

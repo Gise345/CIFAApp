@@ -76,7 +76,7 @@ export interface LeagueFixture {
   awayTeamName: string;
   awayTeamLogo?: string;
   matchday: number;
-  date: Timestamp;
+  date: any; // Changed to any to handle different date formats including undefined
   venue: string;
   status: 'scheduled' | 'live' | 'completed' | 'postponed' | 'cancelled';
   homeScore?: number;
@@ -111,6 +111,45 @@ export interface LeagueFixture {
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
+
+// Helper function to safely convert any date format to milliseconds
+const safeGetMillis = (date: any): number => {
+  if (!date) return 0;
+  
+  // If it's a Firestore Timestamp with toMillis method
+  if (typeof date.toMillis === 'function') {
+    return date.toMillis();
+  }
+  
+  // If it's a Firestore Timestamp with toDate method
+  if (typeof date.toDate === 'function') {
+    return date.toDate().getTime();
+  }
+  
+  // If it's a JavaScript Date
+  if (date instanceof Date) {
+    return date.getTime();
+  }
+  
+  // If it's a number (timestamp)
+  if (typeof date === 'number') {
+    return date;
+  }
+  
+  // If it's a string, try to parse as date
+  if (typeof date === 'string') {
+    try {
+      return new Date(date).getTime();
+    } catch (e) {
+      console.warn('Invalid date string:', date);
+      return 0;
+    }
+  }
+  
+  // Default to current time if unknown format
+  console.warn('Unknown date format:', date);
+  return Date.now();
+};
 
 /**
  * Get all leagues
@@ -429,9 +468,9 @@ export const getTeamFixtures = async (teamId: string, limit?: number): Promise<L
     } as LeagueFixture));
     
     return fixtures.sort((a, b) => {
-      // Convert Firestore timestamps to milliseconds for comparison
-      const dateA = a.date.toMillis();
-      const dateB = b.date.toMillis();
+      // Use the safe function to get milliseconds for comparison
+      const dateA = safeGetMillis(a.date);
+      const dateB = safeGetMillis(b.date);
       return dateA - dateB;
     });
   } catch (error) {

@@ -1,22 +1,25 @@
-// src/components/teams/TeamFixtures.tsx
+// src/components/teams/TeamFixtures.tsx - Modified date conversion function
+
 import React, { useEffect, useState } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
-  FlatList, 
   TouchableOpacity, 
-  ActivityIndicator 
+  ActivityIndicator, 
+  FlatList,
+  RefreshControl 
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { format } from 'date-fns';
 
 import Card from '../common/Card';
 import Section from '../common/Section';
-import FixtureItem from '../matches/FixtureItem'; // This expects a different type
+import FixtureItem from '../matches/FixtureItem'; 
 import { useTeams } from '../../hooks/useTeams';
 import { goToFixture } from '../../utils/router';
 import { LeagueFixture } from '../../services/firebase/leagues';
+import { convertToDate, formatDate, formatTime } from '../../utils/dateUtils';
 
 // Define the Fixture type expected by FixtureItem component
 interface Team {
@@ -40,17 +43,15 @@ interface Fixture {
   awayScore?: number;
 }
 
-// Function to convert LeagueFixture to Fixture type
+// Function to convert LeagueFixture to Fixture type with safe date handling
 const convertToFixture = (leagueFixture: LeagueFixture): Fixture => {
-  // Format date if it's a Firestore timestamp
-  const fixtureDate = leagueFixture.date instanceof Date 
-    ? leagueFixture.date 
-    : leagueFixture.date.toDate();
+  // Safely convert date to JavaScript Date
+  const fixtureDate = convertToDate(leagueFixture.date);
   
   return {
     id: leagueFixture.id,
-    date: format(fixtureDate, 'MMM d, yyyy'),
-    time: format(fixtureDate, 'h:mm a'),
+    date: formatDate(fixtureDate),
+    time: formatTime(fixtureDate),
     competition: leagueFixture.competition || 'League Match',
     homeTeam: {
       id: leagueFixture.homeTeamId,
@@ -106,27 +107,41 @@ const TeamFixtures: React.FC<TeamFixturesProps> = ({
   const { fetchTeamFixtures, getFixturesByStatus, loading, error } = useTeams();
   const [fixtures, setFixtures] = useState<LeagueFixture[]>([]);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [refreshing, setRefreshing] = useState(false);
   
   // Load fixtures data on mount
   useEffect(() => {
     const loadFixtures = async () => {
       try {
+        if (!teamId) return;
+        
         const fixturesData = await fetchTeamFixtures(teamId);
-        setFixtures(fixturesData);
+        setFixtures(fixturesData || []);
       } catch (err) {
         console.error('Error loading fixtures:', err);
       }
     };
     
-    if (teamId) {
-      loadFixtures();
-    }
+    loadFixtures();
   }, [teamId, fetchTeamFixtures]);
-  
-  // Get fixtures by status
-  const { liveFixtures, upcomingFixtures, pastFixtures } = getFixturesByStatus(fixtures);
+
+  // Refresh fixtures
+  const handleRefresh = async () => {
+    if (!teamId) return;
+    
+    setRefreshing(true);
+    try {
+      const fixturesData = await fetchTeamFixtures(teamId);
+      setFixtures(fixturesData || []);
+    } catch (err) {
+      console.error('Error refreshing fixtures:', err);
+    }
+    setRefreshing(false);
+  };
   
   // Get fixtures based on active tab
+  const { liveFixtures, upcomingFixtures, pastFixtures } = getFixturesByStatus(fixtures);
+  
   const displayFixtures = activeTab === 'upcoming' 
     ? [...liveFixtures, ...upcomingFixtures].slice(0, limit) 
     : pastFixtures.slice(0, limit);
@@ -172,7 +187,7 @@ const TeamFixtures: React.FC<TeamFixturesProps> = ({
         </View>
         
         {/* Loading state */}
-        {loading && (
+        {loading && !refreshing && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color="#2563eb" />
             <Text style={styles.loadingText}>Loading fixtures...</Text>
@@ -202,6 +217,9 @@ const TeamFixtures: React.FC<TeamFixturesProps> = ({
                 )}
                 contentContainerStyle={styles.listContent}
                 scrollEnabled={false}
+                refreshControl={
+                  <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+                }
               />
             ) : (
               <View style={styles.emptyContainer}>

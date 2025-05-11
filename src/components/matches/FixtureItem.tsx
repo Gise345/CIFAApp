@@ -81,7 +81,7 @@ const FixtureItem: React.FC<FixtureItemProps> = ({
           {hasScores ? (
             <View style={styles.scoreContainer}>
               <Text style={styles.scoreText}>
-                {fixture.homeScore} - {fixture.awayScore}
+                {fixture.homeScore ?? 0} - {fixture.awayScore ?? 0}
               </Text>
               {isLive && <Text style={styles.liveIndicator}>LIVE</Text>}
             </View>

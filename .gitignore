@@ -45,3 +45,5 @@ yarn-error.*
 # Firebase
 google-services.json
 GoogleService-Info.plist
+
+cifa-mobile-app-firebase-adminsdk-fbsvc-80c441ebfa.json

@@ -44,6 +44,7 @@
     "expo-video": "~2.1.8",
     "expo-web-browser": "~14.1.6",
     "firebase": "^10.8.0",
+    "firebase-admin": "^13.3.0",
     "lucide-react-native": "^0.507.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
@@ -65,5 +66,17 @@
     "react-test-renderer": "19.0.0",
     "typescript": "~5.8.3"
   },
-  "private": true
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Gise345/CIFAApp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Gise345/CIFAApp/issues"
+  },
+  "homepage": "https://github.com/Gise345/CIFAApp#readme",
+  "description": ""
 }
