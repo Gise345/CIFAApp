@@ -1,4 +1,4 @@
-// CIFAMobileApp/src/components/tables/LeagueTable.tsx
+// CIFAMobileApp/src/components/tables/LeagueTable.tsx - Updated for TeamLogo compatibility
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
@@ -6,16 +6,17 @@ import Card from '../common/Card';
 import Section from '../common/Section';
 import LeagueTableRow from './LeagueTableRow';
 
-// Define the Team interface to match what LeagueTableRow expects
+// Updated Team interface to match what TeamLogo expects
 interface Team {
   id: string;
   name: string;
-  logo: string;
+  logo?: string;
+  logoUrl?: string; // Added for TeamLogo compatibility
   position: number;
   played: number;
   goalDifference: string;
   points: number;
-  color: string;
+  color: string; // Used for the colorPrimary in TeamLogo
 }
 
 interface LeagueTableProps {
@@ -42,7 +43,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
         season: '2024-25 Season',
         teams: [
           {
-            id: 'elite',
+            id: 'elite-mpl',
             name: 'Elite SC',
             logo: '/path/to/logo',
             position: 1,
@@ -52,7 +53,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
             color: '#16a34a', // Green
           },
           {
-            id: 'scholars',
+            id: 'scholars-mpl',
             name: 'Scholars',
             logo: '/path/to/logo',
             position: 2,
@@ -62,7 +63,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
             color: '#1e40af', // Blue
           },
           {
-            id: 'future',
+            id: 'future-mpl',
             name: 'Future SC',
             logo: '/path/to/logo',
             position: 3,
@@ -72,7 +73,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
             color: '#ca8a04', // Yellow/gold
           },
           {
-            id: 'bodden',
+            id: 'boddentown-mpl',
             name: 'Bodden',
             logo: '/path/to/logo',
             position: 4,
@@ -89,7 +90,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
         season: '2024-25 Season',
         teams: [
           {
-            id: 'scholars-women',
+            id: 'scholars-wpl',
             name: 'Scholars',
             logo: '/path/to/logo',
             position: 1,
@@ -99,7 +100,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
             color: '#1e40af', // Blue
           },
           {
-            id: 'elite-women',
+            id: 'elite-wpl',
             name: 'Elite SC',
             logo: '/path/to/logo',
             position: 2,
@@ -109,7 +110,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
             color: '#16a34a', // Green
           },
           {
-            id: 'latinos-women',
+            id: 'latinos-wpl',
             name: 'Latinos FC',
             logo: '/path/to/logo',
             position: 3,
@@ -119,7 +120,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
             color: '#ca8a04', // Yellow/gold
           },
           {
-            id: 'sunset-women',
+            id: 'sunset-wpl',
             name: 'Sunset FC',
             logo: '/path/to/logo',
             position: 4,
@@ -136,7 +137,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
         season: '2024-25 Season',
         teams: [
           {
-            id: 'sunset',
+            id: 'sunset-mfd',
             name: 'Sunset FC',
             logo: '/path/to/logo',
             position: 1,
@@ -166,7 +167,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
             color: '#0ea5e9', // Light blue
           },
           {
-            id: 'cayman-athletic',
+            id: 'cayman-athletic-mfd',
             name: 'Cayman Athletic',
             logo: '/path/to/logo',
             position: 4,
@@ -183,7 +184,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
         season: '2024-25 Season',
         teams: [
           {
-            id: 'academy-u17',
+            id: 'academy-mpl',
             name: 'Academy SC',
             logo: '/path/to/logo',
             position: 1,
@@ -193,7 +194,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
             color: '#0ea5e9', // Light blue
           },
           {
-            id: 'scholars-u17',
+            id: 'scholars-mpl',
             name: 'Scholars',
             logo: '/path/to/logo',
             position: 2,
@@ -203,7 +204,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
             color: '#1e40af', // Blue
           },
           {
-            id: 'bodden-u17',
+            id: 'boddentown-mpl',
             name: 'Bodden Town',
             logo: '/path/to/logo',
             position: 3,
@@ -213,7 +214,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
             color: '#7e22ce', // Purple
           },
           {
-            id: 'future-u17',
+            id: 'future-mpl',
             name: 'Future SC',
             logo: '/path/to/logo',
             position: 4,
@@ -230,7 +231,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
         season: '2024-25 Season',
         teams: [
           {
-            id: 'elite-u15',
+            id: 'elite-mpl',
             name: 'Elite SC',
             logo: '/path/to/logo',
             position: 1,
@@ -240,7 +241,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
             color: '#16a34a', // Green
           },
           {
-            id: 'academy-u15',
+            id: 'academy-mpl',
             name: 'Academy SC',
             logo: '/path/to/logo',
             position: 2,
@@ -250,7 +251,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
             color: '#0ea5e9', // Light blue
           },
           {
-            id: 'sunset-u15',
+            id: 'sunset-mpl',
             name: 'Sunset FC',
             logo: '/path/to/logo',
             position: 3,
@@ -260,7 +261,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
             color: '#ef4444', // Red
           },
           {
-            id: 'scholars-u15',
+            id: 'scholars-mpl',
             name: 'Scholars',
             logo: '/path/to/logo',
             position: 4,

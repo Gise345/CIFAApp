@@ -1,7 +1,8 @@
-// CIFAMobileApp/src/components/tables/LeagueTableRow.tsx
+// CIFAMobileApp/src/components/tables/LeagueTableRow.tsx - Updated with TeamLogo
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
+import TeamLogo from '../common/TeamLogo';
 
 interface Team {
   id: string;
@@ -36,11 +37,13 @@ const LeagueTableRow: React.FC<LeagueTableRowProps> = ({ team, isLast = false })
       </Text>
       
       <View style={[styles.teamColumn, styles.teamInfo]}>
-        <View 
-          style={[
-            styles.teamLogo, 
-            { backgroundColor: team.color }
-          ]} 
+        {/* Replace the custom logo view with TeamLogo component */}
+        <TeamLogo 
+          teamId={team.id}
+          teamName={team.name}
+          size={16}
+          colorPrimary={team.color}
+          style={styles.teamLogoWrapper}
         />
         <Text style={styles.teamName}>{team.name}</Text>
       </View>
@@ -99,10 +102,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  teamLogo: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+  teamLogoWrapper: {
     marginRight: 8,
   },
   teamName: {

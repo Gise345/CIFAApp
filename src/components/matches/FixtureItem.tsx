@@ -1,7 +1,8 @@
-// CIFAMobileApp/src/components/matches/FixtureItem.tsx
+// CIFAMobileApp/src/components/matches/FixtureItem.tsx - Updated with TeamLogo
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import TeamLogo from '../common/TeamLogo'; // Import the TeamLogo component
 
 interface Team {
   id: string;
@@ -28,25 +29,18 @@ interface FixtureItemProps {
   fixture: Fixture;
   onPress?: () => void;
   showVenue?: boolean;
+  showLeague?: boolean;
 }
 
 const FixtureItem: React.FC<FixtureItemProps> = ({
   fixture,
   onPress,
   showVenue = false,
+  showLeague = false,
 }) => {
   const isLive = fixture.status === 'live';
   const isCompleted = fixture.status === 'completed';
   const hasScores = isLive || isCompleted;
-
-  // Placeholder for team logos
-  const getLogoPlaceholder = (teamId: string, teamCode: string, color: string) => {
-    return (
-      <View style={[styles.teamLogoContainer, { backgroundColor: color }]}>
-        <Text style={styles.teamLogoText}>{teamCode}</Text>
-      </View>
-    );
-  };
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
@@ -57,24 +51,21 @@ const FixtureItem: React.FC<FixtureItemProps> = ({
         style={styles.container}
       >
         <Text style={styles.metaText}>
-          {fixture.date} • {fixture.time} • {fixture.competition}
+          {fixture.date} • {fixture.time} 
+          {showLeague && fixture.competition ? ` • ${fixture.competition}` : ''}
         </Text>
         
         <View style={styles.teamsContainer}>
           <View style={styles.teamContainer}>
-            {fixture.homeTeam.logo ? (
-              <Image 
-                source={{ uri: fixture.homeTeam.logo }} 
-                style={styles.teamLogo} 
-                resizeMode="contain"
-              />
-            ) : (
-              getLogoPlaceholder(
-                fixture.homeTeam.id, 
-                fixture.homeTeam.code, 
-                fixture.homeTeam.primaryColor
-              )
-            )}
+            {/* Replace Image with TeamLogo component */}
+            <TeamLogo 
+              teamId={fixture.homeTeam.id}
+              teamName={fixture.homeTeam.name}
+              teamCode={fixture.homeTeam.code}
+              size="small"
+              colorPrimary={fixture.homeTeam.primaryColor}
+              style={styles.teamLogoWrapper}
+            />
             <Text style={styles.teamName}>{fixture.homeTeam.name}</Text>
           </View>
           
@@ -92,21 +83,17 @@ const FixtureItem: React.FC<FixtureItemProps> = ({
             </View>
           )}
           
-          <View style={styles.teamContainer}>
-            <Text style={styles.teamName}>{fixture.awayTeam.name}</Text>
-            {fixture.awayTeam.logo ? (
-              <Image 
-                source={{ uri: fixture.awayTeam.logo }} 
-                style={styles.teamLogo} 
-                resizeMode="contain"
-              />
-            ) : (
-              getLogoPlaceholder(
-                fixture.awayTeam.id, 
-                fixture.awayTeam.code, 
-                fixture.awayTeam.primaryColor
-              )
-            )}
+          <View style={[styles.teamContainer, styles.teamContainerReverse]}>
+            <Text style={[styles.teamName, styles.teamNameRight]}>{fixture.awayTeam.name}</Text>
+            {/* Replace Image with TeamLogo component */}
+            <TeamLogo 
+              teamId={fixture.awayTeam.id}
+              teamName={fixture.awayTeam.name}
+              teamCode={fixture.awayTeam.code}
+              size="small"
+              colorPrimary={fixture.awayTeam.primaryColor}
+              style={styles.teamLogoWrapper}
+            />
           </View>
         </View>
         
@@ -151,30 +138,19 @@ const styles = StyleSheet.create({
   },
   teamContainerReverse: {
     justifyContent: 'flex-end',
+    flexDirection: 'row-reverse',
   },
-  teamLogo: {
-    width: 32,
-    height: 32,
-    marginRight: 8,
-  },
-  teamLogoContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  teamLogoText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
+  teamLogoWrapper: {
+    marginHorizontal: 8,
   },
   teamName: {
     fontSize: 14,
     fontWeight: '500',
     color: 'white',
     flex: 1,
+  },
+  teamNameRight: {
+    textAlign: 'right',
   },
   vsContainer: {
     alignItems: 'center',

@@ -1,0 +1,153 @@
+# Team Logo Implementation Guide
+
+## Overview
+
+This document describes the implementation of team logo display throughout the CIFA Mobile App, including the components created, issues encountered, and their solutions.
+
+## Components Created
+
+### 1. TeamLogo Component
+
+The `TeamLogo` component provides a consistent way to display team logos across the app. It features:
+
+- Multiple size options (small, medium, large, or custom sizes)
+- Fallback to team initials when logos are unavailable
+- Loading indicators while fetching logos
+- Error handling and graceful degradation
+- Support for optional team names beneath logos
+
+**Location**: `src/components/common/TeamLogo.tsx`
+
+### 2. Team Logo Hook
+
+The `useTeamLogo` custom hook handles the logic for fetching team logos from Firebase Storage:
+
+- Handles various naming patterns found in the Firestore data
+- Tries multiple file formats (.jpeg, .png, .svg)
+- Properly handles loading and error states
+- Provides caching to prevent duplicate requests
+
+**Location**: `src/hooks/useTeamLogo.ts`
+
+## Usage in Components
+
+The TeamLogo component is now being used in several key areas:
+
+1. **Team Details Screen** - For the main team view
+2. **Fixture Items** - For teams in match fixtures
+3. **League Tables** - For team entries in standings
+4. **Featured Matches** - For teams in highlighted matches
+5. **Team Updates** - For team stories on the home screen
+
+## Issues Encountered and Solutions
+
+### 1. Firebase Storage Permission Issues
+
+**Problem**: The team logos stored in Firebase Storage were not accessible due to security rules preventing public access. This resulted in 403 (Permission Denied) errors when trying to fetch logo URLs.
+
+**Solution**: Updated Firebase Storage security rules to allow public read access specifically to the "Team Logos" folder while maintaining security for other areas.
+
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Match any file in the Team Logos folder and allow public read
+    match /Team%20Logos/{fileName} {
+      allow read: if true;  // This allows public read access
+      allow write: if request.auth != null;  // Only authenticated users can write
+    }
+    
+    // All other files require authentication
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
+Note: The folder name had to be URL-encoded as "Team%20Logos" because spaces in path names were causing parser errors.
+
+### 2. Inconsistent Logo Naming in Firebase Storage
+
+**Problem**: Team logos were stored in Firebase with different naming patterns and file extensions, making it difficult to reliably fetch the correct logo.
+
+**Solution**: Implemented a flexible logo loading system that tries multiple file formats and naming patterns based on team ID and name.
+
+For example, for the team "345 Football Club" with ID "345-mpl", the system tries:
+- `Team Logos/345FC-logo.jpeg`
+- `Team Logos/345-logo.png`
+- `Team Logos/345-logo.svg`
+
+### 3. Case Sensitivity in Firebase Storage
+
+**Problem**: Firebase Storage paths are case-sensitive, which caused issues when trying to access logos with the wrong capitalization.
+
+**Solution**: Identified the exact capitalization patterns from Firestore data and matched them in our logo loading logic.
+
+Examples:
+- `345FC-logo.jpeg` (uppercase "FC")
+- `BoddenTown-logo.png` (camel case)
+- `future_sc.png` (lowercase with underscore)
+
+## Alternative Approaches Considered
+
+### 1. Anonymous Authentication
+
+If you can't update Firebase Storage rules, an alternative is to use anonymous authentication before accessing the logos:
+
+```typescript
+// Sign in anonymously to access protected resources
+export const signInAnonymouslyToFirebase = async (): Promise<void> => {
+  try {
+    if (!auth.currentUser) {
+      await signInAnonymously(auth);
+    }
+  } catch (error) {
+    console.error('Error signing in anonymously:', error);
+  }
+};
+```
+
+### 2. Local Images
+
+For offline support or to avoid Firebase Storage issues entirely, you can include team logos as local assets:
+
+```typescript
+// Import all local logo images
+const logoImages = {
+  '345': require('../../../assets/images/team-logos/345FC-logo.png'),
+  'boddentown': require('../../../assets/images/team-logos/BoddenTown-logo.png'),
+  'elite': require('../../../assets/images/team-logos/Elite-logo.png'),
+  // etc.
+};
+```
+
+## Logo Naming Recommendations
+
+For consistency in future logo uploads, follow these naming conventions:
+
+1. Store all team logos in the "Team Logos" folder in Firebase Storage
+2. Use the team's ID prefix as part of the filename (e.g., "345FC-logo.jpeg" for team with ID "345-mpl")
+3. Consistently use the same file extension for all logos (.png recommended for best quality/compression balance)
+4. Avoid spaces in filenames
+
+## Troubleshooting
+
+If logos stop appearing:
+
+1. **Check Firebase Storage Rules**: Ensure public read access is still enabled for the "Team Logos" folder
+2. **Verify Network Access**: Ensure the app has internet permissions
+3. **Check Console Logs**: Look for "Permission denied" or other error messages
+4. **Test Direct URLs**: Try opening a logo URL directly in the browser
+5. **Verify Firebase Config**: Ensure the Firebase configuration is still valid
+6. **Check for Image Corruption**: Ensure all logo images are properly formatted
+
+## Firebase Storage Rules Location
+
+To modify Firebase Storage rules:
+1. Go to the Firebase console (https://console.firebase.google.com/)
+2. Navigate to your project
+3. Select "Storage" from the left menu
+4. Click on the "Rules" tab
+5. Modify the rules as needed
+6. Click "Publish"

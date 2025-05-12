@@ -1,7 +1,8 @@
-// CIFAMobileApp/src/components/home/TeamUpdates.tsx
+// CIFAMobileApp/src/components/home/TeamUpdates.tsx - Updated with TeamLogo
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import TeamLogo from '../common/TeamLogo';
 
 interface TeamStory {
   id: string;
@@ -79,14 +80,14 @@ const TeamUpdates: React.FC = () => {
               style={styles.storyRing}
             >
               <View style={styles.storyImageContainer}>
-                <View 
-                  style={[
-                    styles.teamLogo, 
-                    { backgroundColor: team.colorPrimary }
-                  ]}
-                >
-                  <Text style={styles.teamCode}>{team.teamCode}</Text>
-                </View>
+                {/* Replace custom logo with TeamLogo component */}
+                <TeamLogo 
+                  teamId={team.teamId}
+                  teamName={team.teamName}
+                  teamCode={team.teamCode}
+                  size={56}
+                  colorPrimary={team.colorPrimary}
+                />
               </View>
             </LinearGradient>
             <Text style={styles.teamName}>{team.teamName}</Text>
@@ -135,18 +136,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  teamLogo: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  teamCode: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 12,
+    overflow: 'hidden',
   },
   teamName: {
     fontSize: 12,

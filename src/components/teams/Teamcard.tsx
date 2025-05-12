@@ -1,10 +1,11 @@
-// src/components/teams/TeamCard.tsx
+// src/components/teams/TeamCard.tsx - Updated
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { Team } from '../../types/team';
 import { goToTeam } from '../../utils/router';
+import TeamLogo from '../common/TeamLogo';
 
 interface TeamCardProps {
   team: Team;
@@ -14,23 +15,6 @@ interface TeamCardProps {
 const TeamCard: React.FC<TeamCardProps> = ({ team, style }) => {
   const handlePress = () => {
     goToTeam(team.id);
-  };
-
-  // Get team initials for placeholder logo
-  const getTeamInitials = (teamName: string): string => {
-    if (!teamName) return '';
-    
-    const words = teamName.split(' ');
-    if (words.length === 1) {
-      return words[0].substring(0, 3).toUpperCase();
-    }
-    
-    // Return first letter of each word (up to 3)
-    return words
-      .slice(0, 3)
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase();
   };
 
   // Get second color for gradient based on primary color
@@ -72,13 +56,12 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, style }) => {
       >
         <View style={styles.teamInfo}>
           <View style={styles.logoContainer}>
-            {team.logoUrl ? (
-              <Image source={{ uri: team.logoUrl }} style={styles.logo} />
-            ) : (
-              <View style={styles.logoPlaceholder}>
-                <Text style={styles.logoText}>{getTeamInitials(team.name)}</Text>
-              </View>
-            )}
+            <TeamLogo 
+              teamId={team.id}
+              teamName={team.name}
+              size="medium"
+              colorPrimary="#FFFFFF" // Use white as background for the logo in this context
+            />
           </View>
           
           <View style={styles.textContainer}>
@@ -123,25 +106,6 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginRight: 12,
-  },
-  logo: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'white',
-  },
-  logoPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: 'white',
   },
   textContainer: {
     flex: 1,

@@ -1,11 +1,10 @@
-// app/teams/[id]/index.tsx
+// app/teams/[id]/index.tsx - Updated with TeamLogo component
 import React, { useEffect, useState } from 'react';
 import { 
   StyleSheet, 
   View, 
   Text, 
   ScrollView, 
-  Image,
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
@@ -17,13 +16,11 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { useTeams } from '../../../src/hooks/useTeams';
-import { useLeagues } from '../../../src/hooks/useLeagues';
 import { useParams, getParam } from '../../../src/utils/router';
-import { Team } from '../../../src/types/team';
 import { LeagueFixture } from '../../../src/services/firebase/leagues';
+import TeamLogo from '../../../src/components/common/TeamLogo'; // Import the TeamLogo component
 
 import Card from '../../../src/components/common/Card';
-import Section from '../../../src/components/common/Section';
 import EnhancedPlayerList from '../../../src/components/teams/EnhancedPlayerList';
 import FixtureItem from '../../../src/components/leagues/FixtureItem';
 import TeamPlayerStories from '../../../src/components/teams/TeamPlayerStories'; 
@@ -168,23 +165,6 @@ const getFixturesByStatus = (fixtures: LeagueFixture[] = []) => {
     Linking.openURL(url);
   };
   
-  // Get team initials
-  const getTeamInitials = (teamName: string): string => {
-    if (!teamName) return '';
-    
-    const words = teamName.split(' ');
-    if (words.length === 1) {
-      return words[0].substring(0, 3).toUpperCase();
-    }
-    
-    // Return first letter of each word (up to 3)
-    return words
-      .slice(0, 3)
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase();
-  };
-  
   // Render loading state
   if (loading && !refreshing && !selectedTeam) {
     return (
@@ -223,9 +203,14 @@ const getFixturesByStatus = (fixtures: LeagueFixture[] = []) => {
               style={styles.heroBg}
             >
               <View style={styles.logoContainer}>
-                <View style={[styles.logoCircle, { backgroundColor: selectedTeam.colorPrimary || '#2563eb' }]}>
-                  <Text style={styles.logoText}>{getTeamInitials(selectedTeam.name)}</Text>
-                </View>
+                {/* Replace the old logo code with TeamLogo component */}
+                <TeamLogo 
+                  teamId={teamId}
+                  teamName={selectedTeam.name}
+                  size={100}
+                  colorPrimary={selectedTeam.colorPrimary || '#2563eb'}
+                  style={styles.logoCircle}
+                />
               </View>
               
               <View style={styles.teamNameContainer}>
@@ -540,11 +525,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 4,
     borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  logoText: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: 'white',
   },
   teamNameContainer: {
     alignItems: 'center',

@@ -1,8 +1,9 @@
-// CIFAMobileApp/src/components/home/FeaturedMatch.tsx
+// CIFAMobileApp/src/components/home/FeaturedMatch.tsx - Updated with TeamLogo
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
+import TeamLogo from '../common/TeamLogo';
 
 interface TeamProps {
   id: string;
@@ -43,18 +44,19 @@ const FeaturedMatch: React.FC<FeaturedMatchProps> = ({
     notification: 'Starting lineup announced',
   };
 
-  // Team logo component
-  const TeamLogo: React.FC<{ team: TeamProps }> = ({ team }) => (
+  // Updated Team component to use TeamLogo
+  const TeamDisplay: React.FC<{ team: TeamProps }> = ({ team }) => (
     <View style={styles.teamContainer}>
       <View style={styles.logoOuterContainer}>
-        <View 
-          style={[
-            styles.logoInnerContainer, 
-            { backgroundColor: team.primaryColor }
-          ]}
-        >
-          <Text style={styles.teamCode}>{team.code}</Text>
-        </View>
+        {/* Replace the custom logo with TeamLogo component */}
+        <TeamLogo 
+          teamId={team.id}
+          teamName={team.name}
+          teamCode={team.code}
+          size={44}
+          colorPrimary={team.primaryColor}
+          style={styles.logoInnerContainer}
+        />
       </View>
       <Text style={styles.teamName}>{team.name}</Text>
     </View>
@@ -70,14 +72,14 @@ const FeaturedMatch: React.FC<FeaturedMatchProps> = ({
       <Text style={styles.featuredText}>FEATURED MATCH • {matchData.date}</Text>
       
       <View style={styles.matchContainer}>
-        <TeamLogo team={matchData.homeTeam as TeamProps} />
+        <TeamDisplay team={matchData.homeTeam as TeamProps} />
         
         <View style={styles.scoreContainer}>
           <Text style={styles.vsText}>VS</Text>
           <Text style={styles.timeText}>{matchData.time}</Text>
         </View>
         
-        <TeamLogo team={matchData.awayTeam as TeamProps} />
+        <TeamDisplay team={matchData.awayTeam as TeamProps} />
       </View>
       
       <View style={styles.actionContainer}>
@@ -138,13 +140,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  teamCode: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 14,
   },
   teamName: {
     color: 'white',

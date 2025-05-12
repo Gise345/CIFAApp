@@ -1,10 +1,11 @@
-// src/components/teams/TeamList.tsx
+// src/components/teams/TeamList.tsx - Updated
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Team } from '../../types/team';
 import { goToTeam } from '../../utils/router';
 import { getTeams } from '../../services/firebase/teams';
+import TeamLogo from '../common/TeamLogo';
 
 interface TeamListProps {
   teams?: Team[];
@@ -53,23 +54,6 @@ const TeamList: React.FC<TeamListProps> = ({
   const handleTeamPress = (teamId: string) => {
     // Navigate to team detail page
     goToTeam(teamId);
-  };
-
-  // Get team initials for placeholder logo
-  const getTeamInitials = (teamName: string): string => {
-    if (!teamName) return '';
-    
-    const words = teamName.split(' ');
-    if (words.length === 1) {
-      return words[0].substring(0, 3).toUpperCase();
-    }
-    
-    // Return first letter of each word (up to 3)
-    return words
-      .slice(0, 3)
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase();
   };
 
   // Generate a consistent color based on team name
@@ -139,20 +123,12 @@ const TeamList: React.FC<TeamListProps> = ({
           style={styles.teamCard}
           onPress={() => handleTeamPress(team.id)}
         >
-          <View 
-            style={[
-              styles.teamLogo, 
-              { backgroundColor: team.colorPrimary || getTeamColor(team.name) }
-            ]}
-          >
-            {team.logoUrl ? (
-              <Image source={{ uri: team.logoUrl }} style={styles.logoImage} />
-            ) : (
-              <Text style={styles.teamInitials}>
-                {getTeamInitials(team.name)}
-              </Text>
-            )}
-          </View>
+          <TeamLogo 
+            teamId={team.id}
+            teamName={team.name}
+            size={64}
+            colorPrimary={team.colorPrimary || getTeamColor(team.name)}
+          />
           <Text style={styles.teamName} numberOfLines={1}>{team.name}</Text>
           <Text style={styles.teamDivision} numberOfLines={1}>{team.division}</Text>
         </TouchableOpacity>
@@ -215,36 +191,6 @@ const styles = StyleSheet.create({
     marginRight: 16,
     alignItems: 'center',
   },
-  teamLogo: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-    overflow: 'hidden',
-  },
-  logoImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  },
-  teamInitials: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  teamName: {
-    fontSize: 12,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginBottom: 2,
-  },
-  teamDivision: {
-    fontSize: 10,
-    color: '#6b7280',
-    textAlign: 'center',
-  },
   viewAllCard: {
     width: 100,
     alignItems: 'center',
@@ -266,6 +212,17 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 12,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  teamName: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  teamDivision: {
+    fontSize: 10,
     color: '#6b7280',
     textAlign: 'center',
   },
