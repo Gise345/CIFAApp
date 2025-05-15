@@ -1,5 +1,5 @@
 // app/(tabs)/stats.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -19,13 +19,17 @@ import TopScorersCard from '../../src/components/stats/TopScorersCard';
 import LeagueSelector from '../../src/components/stats/LeagueSelector';
 import LeagueStandings from '../../src/components/leagues/LeagueStandings';
 import { StatsProvider, useStatsContext } from '../../src/contexts/StatsContext';
+import { TeamStatsRowSkeleton, TopScorersSkeleton } from '../../src/components/common/SkeletonLoader';
+import ErrorBoundary from '../../src/components/common/ErrorBoundary';
 
 // Main component wrapped with provider
 export default function StatsScreen() {
   return (
-    <StatsProvider>
-      <StatsContent />
-    </StatsProvider>
+    <ErrorBoundary>
+      <StatsProvider>
+        <StatsContent />
+      </StatsProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -40,8 +44,14 @@ function StatsContent() {
     refreshStats 
   } = useStatsContext();
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Log the selected league ID for debugging
+  useEffect(() => {
+    console.log("Selected League ID:", selectedLeagueId);
+  }, [selectedLeagueId]);
 
   const handleLeagueChange = (leagueId: string) => {
+    console.log("League selected:", leagueId);
     setSelectedLeagueId(leagueId);
   };
 
@@ -77,10 +87,42 @@ function StatsContent() {
         />
         
         {loading && !refreshing ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="white" />
-            <Text style={styles.loadingText}>Loading statistics...</Text>
-          </View>
+          <ScrollView style={styles.content}>
+            {/* League Selector - Always show this even during loading */}
+            <LeagueSelector
+              selectedId={selectedLeagueId}
+              onSelectLeague={handleLeagueChange}
+            />
+            
+            <View style={styles.divider} />
+            
+            {/* Skeleton Loaders */}
+            <View style={styles.skeletonContainer}>
+              {/* League Table Skeleton */}
+              <View style={styles.skeletonCard}>
+                <View style={styles.skeletonHeader}>
+                  <View style={styles.skeletonTitle} />
+                  <View style={styles.skeletonSubtitle} />
+                </View>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <View key={i} style={styles.tableRowSkeleton}>
+                    <View style={styles.positionSkeleton} />
+                    <View style={styles.teamSkeleton}>
+                      <View style={styles.logoSkeleton} />
+                      <View style={styles.teamNameSkeleton} />
+                    </View>
+                    <View style={styles.statsSkeleton} />
+                  </View>
+                ))}
+              </View>
+              
+              {/* Team Stats Skeleton */}
+              <TeamStatsRowSkeleton count={3} />
+              
+              {/* Top Scorers Skeleton */}
+              <TopScorersSkeleton />
+            </View>
+          </ScrollView>
         ) : error ? (
           <View style={styles.errorContainer}>
             <Feather name="alert-circle" size={32} color="white" />
@@ -179,5 +221,69 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
     textAlign: 'center',
+  },
+  skeletonContainer: {
+    padding: 16,
+  },
+  skeletonCard: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+  },
+  skeletonHeader: {
+    marginBottom: 16,
+  },
+  skeletonTitle: {
+    height: 20,
+    width: 120,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  skeletonSubtitle: {
+    height: 14,
+    width: 80,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 4,
+  },
+  tableRowSkeleton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  positionSkeleton: {
+    width: 20,
+    height: 20,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  teamSkeleton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoSkeleton: {
+    width: 24,
+    height: 24,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  teamNameSkeleton: {
+    width: 120,
+    height: 16,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 4,
+  },
+  statsSkeleton: {
+    width: 60,
+    height: 16,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 4,
+    marginLeft: 12,
   },
 });

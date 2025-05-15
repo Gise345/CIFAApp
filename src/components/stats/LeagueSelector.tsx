@@ -5,9 +5,10 @@ import {
   Text, 
   ScrollView, 
   StyleSheet, 
-  TouchableOpacity 
+  TouchableOpacity,
+  ActivityIndicator 
 } from 'react-native';
-import { getActiveLeagues } from '../../services/firebase/leagues';
+import { getActiveLeagues, League } from '../../services/firebase/leagues';
 import { LEAGUE_CATEGORIES, LeagueCategory } from '../../constants/LeagueTypes';
 
 interface LeagueSelectorProps {
@@ -21,16 +22,32 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
 }) => {
   const [leagues, setLeagues] = useState<LeagueCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rawLeagues, setRawLeagues] = useState<League[]>([]);
 
   useEffect(() => {
     const loadLeagues = async () => {
       try {
         // First try to load leagues from Firestore
         const activeLeagues = await getActiveLeagues();
+        setRawLeagues(activeLeagues || []);
         
         if (activeLeagues && activeLeagues.length > 0) {
+          // Create a map to track used IDs
+          const usedIds = new Set<string>();
+          
           // Map active leagues to categories
-          const leagueCategories = activeLeagues.map(league => {
+          const leagueCategories = activeLeagues.map((league, index) => {
+            // Generate a unique ID for this league
+            let uniqueId = league.id;
+            
+            // If ID is already used, add a suffix
+            if (usedIds.has(uniqueId)) {
+              uniqueId = `${uniqueId}-${index}`;
+            }
+            
+            // Add ID to used set
+            usedIds.add(uniqueId);
+            
             // Check if we have a predefined category for this league
             const existingCategory = LEAGUE_CATEGORIES.find(c => 
               c.type === league.type && 
@@ -39,12 +56,17 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
             );
 
             if (existingCategory) {
-              return existingCategory;
+              // Use predefined category with the unique ID
+              return {
+                ...existingCategory,
+                id: uniqueId, // Use the unique ID
+                label: league.name || existingCategory.label, // Prefer actual league name
+              };
             }
 
             // Create a new category if not found in predefined categories
             return {
-              id: league.id,
+              id: uniqueId,
               label: league.name,
               type: league.type as any, // Type assertion needed here
               division: league.division,
@@ -55,13 +77,23 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
           
           setLeagues(leagueCategories);
         } else {
-          // Fall back to predefined categories if no active leagues
-          setLeagues(LEAGUE_CATEGORIES);
+          // Generate unique IDs for predefined categories
+          const uniqueCategories = LEAGUE_CATEGORIES.map((cat, index) => ({
+            ...cat,
+            id: `${cat.id}-${index}` // Ensure unique ID by adding index
+          }));
+          
+          setLeagues(uniqueCategories);
         }
       } catch (error) {
         console.error('Error loading leagues:', error);
-        // Fall back to predefined categories
-        setLeagues(LEAGUE_CATEGORIES);
+        // Fall back to predefined categories with unique IDs
+        const uniqueCategories = LEAGUE_CATEGORIES.map((cat, index) => ({
+          ...cat,
+          id: `${cat.id}-${index}` // Ensure unique ID by adding index
+        }));
+        
+        setLeagues(uniqueCategories);
       } finally {
         setLoading(false);
       }
@@ -70,13 +102,38 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
     loadLeagues();
   }, []);
 
+  // For debugging - add console logs
+  useEffect(() => {
+    if (leagues.length > 0) {
+      console.log("Loaded leagues:", leagues.map(l => `${l.id}: ${l.label}`));
+    }
+  }, [leagues]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color="#6b7280" />
         <Text style={styles.loadingText}>Loading leagues...</Text>
       </View>
     );
   }
+
+  // Find the league that best matches the selected ID
+  const findMatchingLeague = (id: string) => {
+    // First try exact match
+    const exactMatch = leagues.find(league => league.id === id);
+    if (exactMatch) return exactMatch.id;
+    
+    // Then try match without index suffix
+    const baseIdMatch = leagues.find(league => id.startsWith(league.id.split('-')[0]));
+    if (baseIdMatch) return baseIdMatch.id;
+    
+    // Default to first league
+    return leagues.length > 0 ? leagues[0].id : '';
+  };
+
+  // Get best matching ID for selection
+  const matchingId = findMatchingLeague(selectedId);
 
   return (
     <ScrollView 
@@ -84,27 +141,39 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.container}
     >
-      {leagues.map((league) => (
-        <TouchableOpacity
-          key={league.id}
-          style={[
-            styles.leagueButton,
-            selectedId === league.id && styles.selectedLeague,
-            { borderColor: league.color || '#2563eb' }
-          ]}
-          onPress={() => onSelectLeague(league.id)}
-        >
-          <Text 
+      {leagues.map((league, index) => {
+        // Create a unique key using ID and index
+        const key = `${league.id}-${index}`;
+        
+        return (
+          <TouchableOpacity
+            key={key}
             style={[
-              styles.leagueText,
-              selectedId === league.id && styles.selectedText,
-              { color: selectedId === league.id ? 'white' : league.color || '#2563eb' }
+              styles.leagueButton,
+              matchingId === league.id && styles.selectedLeague,
+              { borderColor: league.color || '#2563eb' }
             ]}
+            onPress={() => onSelectLeague(league.id)}
           >
-            {league.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
+            <Text 
+              style={[
+                styles.leagueText,
+                matchingId === league.id && styles.selectedText,
+                { color: matchingId === league.id ? 'white' : league.color || '#2563eb' }
+              ]}
+              numberOfLines={1}
+            >
+              {league.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+      
+      {leagues.length === 0 && (
+        <View style={styles.noLeaguesContainer}>
+          <Text style={styles.noLeaguesText}>No leagues available</Text>
+        </View>
+      )}
     </ScrollView>
   );
 };
@@ -117,10 +186,13 @@ const styles = StyleSheet.create({
   loadingContainer: {
     padding: 12,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   loadingText: {
     fontSize: 14,
     color: '#6b7280',
+    marginLeft: 8,
   },
   leagueButton: {
     paddingHorizontal: 16,
@@ -129,6 +201,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginRight: 8,
     minWidth: 100,
+    maxWidth: 160,
     alignItems: 'center',
   },
   selectedLeague: {
@@ -140,6 +213,15 @@ const styles = StyleSheet.create({
   },
   selectedText: {
     color: 'white',
+  },
+  noLeaguesContainer: {
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noLeaguesText: {
+    fontSize: 14,
+    color: '#6b7280',
   },
 });
 

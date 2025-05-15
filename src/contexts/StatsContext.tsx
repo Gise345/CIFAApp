@@ -25,7 +25,9 @@ export const StatsProvider: React.FC<{children: ReactNode}> = ({ children }) => 
   const { fetchLeagueById, fetchLeagueStandings, standings, loading: leaguesLoading, error: leaguesError } = useLeagues();
   
   const [selectedLeagueId, setSelectedLeagueId] = useState<string>(
-    LEAGUE_CATEGORIES[0]?.id || 'mens-premier'
+    LEAGUE_CATEGORIES.find(c => c.id === 'cayman-mens-premier-league')?.id || 
+    LEAGUE_CATEGORIES[0]?.id || 
+    'mens-premier-league'
   );
   const [leagueCategories, setLeagueCategories] = useState<LeagueCategory[]>(LEAGUE_CATEGORIES);
   const [topScorers, setTopScorers] = useState<TopScorer[]>([]);
