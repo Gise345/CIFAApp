@@ -1,22 +1,40 @@
-// CIFAMobileApp/app/stats/team-stats.tsx
+// app/stats/team-stats.tsx
 import React, { useEffect, useState } from 'react';
 import { 
   StyleSheet, 
   View, 
   Text, 
-  SafeAreaView, 
   ScrollView, 
-  ActivityIndicator 
+  ActivityIndicator,
+  TouchableOpacity
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 
 import Header from '../../src/components/common/Header';
 import { useStats } from '../../src/hooks/useStats';
 import { useParams, getParam } from '../../src/utils/router';
-import { Feather } from '@expo/vector-icons';
+import TeamLogo from '../../src/components/common/TeamLogo';
+import StatsScreenWrapper from '../../src/components/helpers/StatsScreenWrapper';
+
+// Helper function to get color for stats
+const getStatColor = (category: string) => {
+  switch (category) {
+    case 'goals':
+      return '#16a34a'; // Green
+    case 'defense':
+      return '#1e40af'; // Blue
+    case 'cleanSheets':
+      return '#7e22ce'; // Purple
+    case 'possession':
+      return '#ea580c'; // Orange
+    default:
+      return '#2563eb'; // Default blue
+  }
+};
 
 export default function TeamStatsPage() {
-  // Get category ID from route params
+  const router = useRouter();
   const params = useParams();
   const categoryId = getParam(params, 'categoryId') || '';
   
@@ -33,7 +51,7 @@ export default function TeamStatsPage() {
   
   useEffect(() => {
     loadStats();
-  }, []);
+  }, [categoryId]);
   
   const loadStats = async () => {
     if (!categoryId) return;
@@ -42,140 +60,129 @@ export default function TeamStatsPage() {
     const data = await fetchTeamRankings(categoryId, [...categories], 10); // Get top 10 teams
     setStats(data);
   };
-  
-  // Loading state
-  if (loading && stats.length === 0) {
-    return (
-      <LinearGradient
-        colors={['#0047AB', '#191970', '#041E42']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.container}
-      >
-        <SafeAreaView style={styles.safeArea}>
-          <Header title="Team Stats" showBack={true} />
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="white" />
-            <Text style={styles.loadingText}>Loading team statistics...</Text>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
-    );
-  }
-  
-  // Error state
-  if (error) {
-    return (
-      <LinearGradient
-        colors={['#0047AB', '#191970', '#041E42']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.container}
-      >
-        <SafeAreaView style={styles.safeArea}>
-          <Header title="Team Stats" showBack={true} />
-          <View style={styles.errorContainer}>
-            <Feather name="alert-circle" size={32} color="white" />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
-    );
-  }
-  
-  // Get the stats categories
-  const goalsStats = stats.find(stat => stat.category === 'goals')?.teams || [];
-  const defenseStats = stats.find(stat => stat.category === 'defense')?.teams || [];
-  const cleanSheetsStats = stats.find(stat => stat.category === 'cleanSheets')?.teams || [];
-  const possessionStats = stats.find(stat => stat.category === 'possession')?.teams || [];
 
-  return (
-    <LinearGradient
-      colors={['#0047AB', '#191970', '#041E42']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.container}
-    >
-      <SafeAreaView style={styles.safeArea}>
-        <Header title="Team Stats" showBack={true} />
+  const handleTeamPress = (teamId: string) => {
+    router.push(`/teams/${teamId}`);
+  };
+  
+  // Render content based on loading/error states
+  const renderContent = () => {
+    // Loading state
+    if (loading && stats.length === 0) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="white" />
+          <Text style={styles.loadingText}>Loading team statistics...</Text>
+        </View>
+      );
+    }
+    
+    // Error state
+    if (error) {
+      return (
+        <View style={styles.errorContainer}>
+          <Feather name="alert-circle" size={32} color="white" />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      );
+    }
+    
+    // Empty state
+    if (stats.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Feather name="bar-chart-2" size={32} color="white" />
+          <Text style={styles.emptyText}>No team statistics available</Text>
+        </View>
+      );
+    }
+    
+    // Get the stats categories
+    const goalsStats = stats.find(stat => stat.category === 'goals')?.teams || [];
+    const defenseStats = stats.find(stat => stat.category === 'defense')?.teams || [];
+    const cleanSheetsStats = stats.find(stat => stat.category === 'cleanSheets')?.teams || [];
+    const possessionStats = stats.find(stat => stat.category === 'possession')?.teams || [];
+    
+    return (
+      <ScrollView style={styles.content}>
+        {/* Most Goals */}
+        {goalsStats.length > 0 && (
+          <View style={styles.statsSection}>
+            <Text style={styles.sectionTitle}>Most Goals</Text>
+            {goalsStats.map((team, index) => (
+              <StatBar 
+                key={`goals-${team.teamId}`}
+                team={team}
+                index={index}
+                type="goals"
+                maxValue={goalsStats[0].value}
+                onPress={() => handleTeamPress(team.teamId)}
+              />
+            ))}
+          </View>
+        )}
         
-        <ScrollView style={styles.content}>
-          {/* Most Goals */}
-          {goalsStats.length > 0 && (
-            <View style={styles.statsSection}>
-              <Text style={styles.sectionTitle}>Most Goals</Text>
-              {goalsStats.map((team, index) => (
-                <StatBar 
-                  key={`goals-${team.teamId}`}
-                  team={team}
-                  index={index}
-                  type="goals"
-                  maxValue={goalsStats[0].value}
-                />
-              ))}
-            </View>
-          )}
-          
-          {/* Best Defense */}
-          {defenseStats.length > 0 && (
-            <View style={styles.statsSection}>
-              <Text style={styles.sectionTitle}>Best Defense</Text>
-              {defenseStats.map((team, index) => (
-                <StatBar 
-                  key={`defense-${team.teamId}`}
-                  team={team}
-                  index={index}
-                  type="defense"
-                  maxValue={defenseStats[0].value}
-                  lowerIsBetter
-                />
-              ))}
-            </View>
-          )}
-          
-          {/* Most Clean Sheets */}
-          {cleanSheetsStats.length > 0 && (
-            <View style={styles.statsSection}>
-              <Text style={styles.sectionTitle}>Most Clean Sheets</Text>
-              {cleanSheetsStats.map((team, index) => (
-                <StatBar 
-                  key={`cleanSheets-${team.teamId}`}
-                  team={team}
-                  index={index}
-                  type="cleanSheets"
-                  maxValue={cleanSheetsStats[0].value}
-                />
-              ))}
-            </View>
-          )}
-          
-          {/* Highest Possession */}
-          {possessionStats.length > 0 && (
-            <View style={styles.statsSection}>
-              <Text style={styles.sectionTitle}>Highest Possession</Text>
-              {possessionStats.map((team, index) => (
-                <StatBar 
-                  key={`possession-${team.teamId}`}
-                  team={team}
-                  index={index}
-                  type="possession"
-                  maxValue={possessionStats[0].value}
-                  showPercentage
-                />
-              ))}
-            </View>
-          )}
-          
-          {/* Show message if no stats */}
-          {stats.length === 0 && (
-            <View style={styles.emptyContainer}>
-              <Feather name="bar-chart-2" size={32} color="white" />
-              <Text style={styles.emptyText}>No team statistics available</Text>
-            </View>
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    </LinearGradient>
+        {/* Best Defense */}
+        {defenseStats.length > 0 && (
+          <View style={styles.statsSection}>
+            <Text style={styles.sectionTitle}>Best Defense</Text>
+            {defenseStats.map((team, index) => (
+              <StatBar 
+                key={`defense-${team.teamId}`}
+                team={team}
+                index={index}
+                type="defense"
+                maxValue={defenseStats[0].value}
+                lowerIsBetter
+                onPress={() => handleTeamPress(team.teamId)}
+              />
+            ))}
+          </View>
+        )}
+        
+        {/* Most Clean Sheets */}
+        {cleanSheetsStats.length > 0 && (
+          <View style={styles.statsSection}>
+            <Text style={styles.sectionTitle}>Most Clean Sheets</Text>
+            {cleanSheetsStats.map((team, index) => (
+              <StatBar 
+                key={`cleanSheets-${team.teamId}`}
+                team={team}
+                index={index}
+                type="cleanSheets"
+                maxValue={cleanSheetsStats[0].value}
+                onPress={() => handleTeamPress(team.teamId)}
+              />
+            ))}
+          </View>
+        )}
+        
+        {/* Highest Possession */}
+        {possessionStats.length > 0 && (
+          <View style={styles.statsSection}>
+            <Text style={styles.sectionTitle}>Highest Possession</Text>
+            {possessionStats.map((team, index) => (
+              <StatBar 
+                key={`possession-${team.teamId}`}
+                team={team}
+                index={index}
+                type="possession"
+                maxValue={possessionStats[0].value}
+                showPercentage
+                onPress={() => handleTeamPress(team.teamId)}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    );
+  };
+  
+  return (
+    <StatsScreenWrapper>
+      <Header title="Team Stats" showBack={true} />
+      {renderContent()}
+    </StatsScreenWrapper>
   );
 }
 
@@ -192,6 +199,7 @@ interface StatBarProps {
   maxValue: number;
   lowerIsBetter?: boolean;
   showPercentage?: boolean;
+  onPress?: () => void;
 }
 
 const StatBar: React.FC<StatBarProps> = ({ 
@@ -200,7 +208,8 @@ const StatBar: React.FC<StatBarProps> = ({
   type, 
   maxValue,
   lowerIsBetter = false,
-  showPercentage = false
+  showPercentage = false,
+  onPress
 }) => {
   // Get bar width as percentage
   const getBarWidth = () => {
@@ -241,9 +250,20 @@ const StatBar: React.FC<StatBarProps> = ({
   };
 
   return (
-    <View style={styles.statBarContainer}>
+    <TouchableOpacity 
+      style={styles.statBarContainer}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
       <View style={styles.statBarTop}>
         <Text style={styles.statPosition}>{index + 1}</Text>
+        <TeamLogo
+          teamId={team.teamId}
+          teamName={team.teamName}
+          size={24}
+          colorPrimary={team.colorPrimary || getDefaultColor()}
+          style={styles.teamLogo}
+        />
         <Text style={styles.statTeamName}>{team.teamName}</Text>
         <Text style={styles.statValue}>{formatValue()}</Text>
       </View>
@@ -252,23 +272,17 @@ const StatBar: React.FC<StatBarProps> = ({
           style={[
             styles.statBarFill, 
             { 
-              width: `${parseFloat(getBarWidth())}%`, 
+              width: parseFloat(getBarWidth()) / 100, 
               backgroundColor: team.colorPrimary || getDefaultColor() 
             }
           ]} 
         />
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
   content: {
     flex: 1,
     backgroundColor: '#f9fafb',
@@ -276,6 +290,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingHorizontal: 16,
     paddingTop: 16,
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
@@ -347,6 +362,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#4b5563',
+  },
+  teamLogo: {
+    marginRight: 8,
   },
   statTeamName: {
     flex: 1,

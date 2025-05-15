@@ -379,7 +379,7 @@ const getFixturesByStatus = (fixtures: LeagueFixture[] = []) => {
           </Card>
           
           {/* Squad / Players */}
-          <Card style={styles.infoCard}>
+          <Card style={styles.infoCard}> 
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>SQUAD</Text>
               <TouchableOpacity onPress={() => router.push(`/teams/${teamId}/roster`)}>
