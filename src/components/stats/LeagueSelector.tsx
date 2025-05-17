@@ -1,15 +1,15 @@
-// src/components/stats/LeagueSelector.tsx
+// src/components/stats/LeagueSelector.tsx - Updated without ScrollView nesting
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
-  ScrollView, 
+  FlatList,
   StyleSheet, 
   TouchableOpacity,
   ActivityIndicator 
 } from 'react-native';
 import { getActiveLeagues, League } from '../../services/firebase/leagues';
-import { LEAGUE_CATEGORIES, LeagueCategory } from '../../constants/LeagueTypes';
+import { LEAGUE_CATEGORIES, LeagueCategory, getSortedLeagueCategories } from '../../constants/LeagueTypes';
 
 interface LeagueSelectorProps {
   selectedId: string;
@@ -35,7 +35,7 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
           // Create a map to track used IDs
           const usedIds = new Set<string>();
           
-          // Map active leagues to categories
+          // Map active leagues to categories with ordering
           const leagueCategories = activeLeagues.map((league, index) => {
             // Generate a unique ID for this league
             let uniqueId = league.id;
@@ -65,35 +65,44 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
             }
 
             // Create a new category if not found in predefined categories
+            // Determine order based on type and division
+            let order = 999; // Default order for unknown categories
+            if (league.type === 'mens' && league.division === 'Premier') {
+              order = 1;
+            } else if (league.type === 'womens' && league.division === 'Premier') {
+              order = 2;
+            } else if (league.type === 'mens' && league.division === 'First') {
+              order = 3;
+            } else if (league.type === 'boys' || league.type === 'girls') {
+              order = 4;
+            } else if (league.type === 'mens' && league.division === 'Championship') {
+              order = 5;
+            } else if (league.type === 'womens' && league.division === 'Championship') {
+              order = 6;
+            }
+
             return {
               id: uniqueId,
               label: league.name,
               type: league.type as any, // Type assertion needed here
               division: league.division,
               ageGroup: league.ageGroup,
-              color: '#2563eb' // Default color
+              color: '#2563eb', // Default color
+              order: order
             };
           });
           
-          setLeagues(leagueCategories);
+          // Sort categories by order
+          const sortedCategories = leagueCategories.sort((a, b) => (a.order || 999) - (b.order || 999));
+          setLeagues(sortedCategories);
         } else {
-          // Generate unique IDs for predefined categories
-          const uniqueCategories = LEAGUE_CATEGORIES.map((cat, index) => ({
-            ...cat,
-            id: `${cat.id}-${index}` // Ensure unique ID by adding index
-          }));
-          
-          setLeagues(uniqueCategories);
+          // Use predefined categories sorted by order
+          setLeagues(getSortedLeagueCategories());
         }
       } catch (error) {
         console.error('Error loading leagues:', error);
-        // Fall back to predefined categories with unique IDs
-        const uniqueCategories = LEAGUE_CATEGORIES.map((cat, index) => ({
-          ...cat,
-          id: `${cat.id}-${index}` // Ensure unique ID by adding index
-        }));
-        
-        setLeagues(uniqueCategories);
+        // Fall back to predefined categories sorted by order
+        setLeagues(getSortedLeagueCategories());
       } finally {
         setLoading(false);
       }
@@ -105,7 +114,7 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
   // For debugging - add console logs
   useEffect(() => {
     if (leagues.length > 0) {
-      console.log("Loaded leagues:", leagues.map(l => `${l.id}: ${l.label}`));
+      console.log("Loaded leagues:", leagues.map(l => `${l.id}: ${l.label} (order: ${l.order})`));
     }
   }, [leagues]);
 
@@ -136,55 +145,49 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
   const matchingId = findMatchingLeague(selectedId);
 
   return (
-    <ScrollView 
-      horizontal 
+    <FlatList
+      horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.container}
-    >
-      {leagues.map((league, index) => {
-        // Create a unique key using ID and index
-        const key = `${league.id}-${index}`;
-        
-        return (
-          <TouchableOpacity
-            key={key}
+      data={leagues}
+      keyExtractor={(item, index) => `${item.id}-${index}`}
+      renderItem={({ item, index }) => (
+        <TouchableOpacity
+          style={[
+            styles.leagueButton,
+            matchingId === item.id && styles.selectedLeague,
+            { borderColor: item.color || '#2563eb' }
+          ]}
+          onPress={() => onSelectLeague(item.id)}
+        >
+          <Text 
             style={[
-              styles.leagueButton,
-              matchingId === league.id && styles.selectedLeague,
-              { borderColor: league.color || '#2563eb' }
+              styles.leagueText,
+              matchingId === item.id && styles.selectedText,
+              { color: matchingId === item.id ? 'white' : item.color || '#2563eb' }
             ]}
-            onPress={() => onSelectLeague(league.id)}
+            numberOfLines={1}
           >
-            <Text 
-              style={[
-                styles.leagueText,
-                matchingId === league.id && styles.selectedText,
-                { color: matchingId === league.id ? 'white' : league.color || '#2563eb' }
-              ]}
-              numberOfLines={1}
-            >
-              {league.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-      
-      {leagues.length === 0 && (
+            {item.label}
+          </Text>
+        </TouchableOpacity>
+      )}
+      ListEmptyComponent={
         <View style={styles.noLeaguesContainer}>
           <Text style={styles.noLeaguesText}>No leagues available</Text>
         </View>
-      )}
-    </ScrollView>
+      }
+    />
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    paddingVertical: 8,
     paddingHorizontal: 16,
-    paddingVertical: 12,
   },
   loadingContainer: {
-    padding: 12,
+    padding: 8,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
@@ -195,27 +198,28 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   leagueButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     borderRadius: 20,
-    borderWidth: 1,
-    marginRight: 8,
-    minWidth: 100,
-    maxWidth: 160,
+    borderWidth: 2,
+    marginRight: 8, //space between buttons
+    minWidth: 80,
+    maxWidth: 250,
+
     alignItems: 'center',
   },
   selectedLeague: {
     backgroundColor: '#2563eb',
   },
   leagueText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
   },
   selectedText: {
     color: 'white',
   },
   noLeaguesContainer: {
-    padding: 12,
+    padding: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },

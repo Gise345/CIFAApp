@@ -10,7 +10,7 @@ const TEAM_LOGO_MAPPINGS: Record<string, string> = {
   "345": "Team Logos/345FC-logo.jpeg",
   "academy": "Team Logos/Academy-logo.jpeg",
   "boddentown": "Team Logos/BoddenTown-logo.png",
-  "elite": "Team Logos/Elite-logo.svg",
+  "elite": "Team Logos/Elite-logo.png",
   "future": "Team Logos/future_sc.png",
   "roma": "Team Logos/Roma-logo.jpeg",
   "scholars": "Team Logos/Scholars-logo.png",
@@ -88,7 +88,8 @@ const TeamLogo: React.FC<TeamLogoProps> = ({
               const possiblePaths = [
                 `Team Logos/${firstWord}-logo.jpeg`,
                 `Team Logos/${firstWord}-logo.png`,
-                `Team Logos/${firstWord}-logo.svg`
+                `Team Logos/${firstWord}-logo.svg`,
+                `Team Logos/${firstWord}-logo.jpg`
               ];
               
               for (const path of possiblePaths) {
@@ -134,7 +135,6 @@ const TeamLogo: React.FC<TeamLogoProps> = ({
         }
 
         if (url) {
-          console.log(`Found logo for ${teamName} (${teamId}) at ${logPath}`);
           setLogoUrl(url);
           setError(false);
         } else {

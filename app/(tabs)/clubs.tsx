@@ -213,9 +213,7 @@ export default function ClubsScreen() {
 
         // Safely proceed with typed firestore instance
         const fetchTeams = async (firestoreInstance: Firestore) => {
-          try {
-            console.log('Fetching teams from Firestore...');
-            
+          try {           
             // Men's teams - using try/catch for each category to ensure one failure doesn't prevent others from loading
             try {
               const mensQuery = query(
@@ -227,14 +225,12 @@ export default function ClubsScreen() {
               const mensSnapshot = await getDocs(mensQuery);
               const mensData = mensSnapshot.docs.map(doc => {
                 const data = doc.data();
-                console.log(`Fetched men's team: ${data.name}, logoUrl: ${data.logoUrl || 'No logo'}`);
                 return {
                   id: doc.id,
                   ...data
                 } as Team;
               });
               
-              console.log(`Fetched ${mensData.length} Men's teams`);
               
               // Set men's teams - critical fix: this was missing
               if (mensData.length > 0) {
@@ -255,14 +251,12 @@ export default function ClubsScreen() {
               const womensSnapshot = await getDocs(womensQuery);
               const womensData = womensSnapshot.docs.map(doc => {
                 const data = doc.data();
-                console.log(`Fetched women's team: ${data.name}, logoUrl: ${data.logoUrl || 'No logo'}`);
                 return {
                   id: doc.id,
                   ...data
                 } as Team;
               });
               
-              console.log(`Fetched ${womensData.length} Women's teams`);
               setWomensTeams(womensData);
             } catch (e) {
               console.error("Error fetching women's teams:", e);
@@ -279,14 +273,12 @@ export default function ClubsScreen() {
               const youthSnapshot = await getDocs(youthQuery);
               const youthData = youthSnapshot.docs.map(doc => {
                 const data = doc.data();
-                console.log(`Fetched youth team: ${data.name}, logoUrl: ${data.logoUrl || 'No logo'}`);
                 return {
                   id: doc.id,
                   ...data
                 } as Team;
               });
               
-              console.log(`Fetched ${youthData.length} Youth teams`);
               setYouthTeams(youthData);
             } catch (e) {
               console.error("Error fetching youth teams:", e);
@@ -303,14 +295,12 @@ export default function ClubsScreen() {
               const firstDivisionSnapshot = await getDocs(firstDivisionQuery);
               const firstDivisionData = firstDivisionSnapshot.docs.map(doc => {
                 const data = doc.data();
-                console.log(`Fetched first division team: ${data.name}, logoUrl: ${data.logoUrl || 'No logo'}`);
                 return {
                   id: doc.id,
                   ...data
                 } as Team;
               });
               
-              console.log(`Fetched ${firstDivisionData.length} First Division teams`);
               setFirstDivisionTeams(firstDivisionData);
             } catch (e) {
               console.error("Error fetching first division teams:", e);

@@ -1,4 +1,4 @@
-// CIFAMobileApp/src/services/firebase/leagues.ts
+// src/services/firebase/leagues.ts - Updated LeagueFixture interface
 import { 
   collection, 
   query, 
@@ -77,6 +77,7 @@ export interface LeagueFixture {
   awayTeamLogo?: string;
   matchday: number;
   date: any; // Changed to any to handle different date formats including undefined
+  time?: string; // Added time property as optional string
   venue: string;
   status: 'scheduled' | 'live' | 'completed' | 'postponed' | 'cancelled';
   homeScore?: number;

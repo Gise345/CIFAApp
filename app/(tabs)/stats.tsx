@@ -18,6 +18,7 @@ import TeamStats from '../../src/components/stats/TeamStats';
 import TopScorersCard from '../../src/components/stats/TopScorersCard';
 import LeagueSelector from '../../src/components/stats/LeagueSelector';
 import LeagueStandings from '../../src/components/leagues/LeagueStandings';
+import LeagueFixturesResults from '../../src/components/stats/LeagueFixturesResults';
 import { StatsProvider, useStatsContext } from '../../src/contexts/StatsContext';
 import { TeamStatsRowSkeleton, TopScorersSkeleton } from '../../src/components/common/SkeletonLoader';
 import ErrorBoundary from '../../src/components/common/ErrorBoundary';
@@ -65,6 +66,10 @@ function StatsContent() {
 
   const handleViewFullTable = () => {
     router.push(`/leagues/${selectedLeagueId}/standings`);
+  };
+
+  const handleViewFixturesResults = () => {
+    router.push(`/leagues/${selectedLeagueId}/fixtures`);
   };
 
   const handleRefresh = async () => {
@@ -167,6 +172,14 @@ function StatsContent() {
               limit={5}
               onViewAll={handleViewTopScorers}
             />
+
+             {/* Fixtures & Results Section - New from pasted code */}
+             {selectedLeagueId && (
+              <LeagueFixturesResults
+                leagueId={selectedLeagueId}
+                onViewAll={handleViewFixturesResults}
+              />
+            )}
             
             {/* Footer padding */}
             <View style={styles.footer} />
