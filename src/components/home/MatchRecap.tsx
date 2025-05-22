@@ -1,70 +1,153 @@
-// CIFAMobileApp/src/components/home/MatchRecap.tsx
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { Video, ResizeMode } from 'expo-av'; // Import ResizeMode enum from expo-av
+// src/components/home/MatchRecap.tsx
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  ScrollView,
+  Image,
+  ActivityIndicator 
+} from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-
-interface VideoItemProps {
-  title: string;
-  date: string;
-  videoSource: any;
-  badge: {
-    text: string;
-    colors: string[];
-  };
-  onPress?: () => void;
-}
+import { router } from 'expo-router';
+import { 
+  fetchInstagramPosts, 
+  InstagramMedia, 
+  getPostTitle, 
+  formatInstagramDate,
+  getPostBadgeInfo
+} from '../../services/instagram/instagramService';
 
 interface MatchRecapProps {
   onViewAll?: () => void;
 }
 
-// Individual Video Card Component
-const VideoCard: React.FC<VideoItemProps> = ({ title, date, videoSource, badge, onPress }) => {
+// Individual Media Card Component
+const MediaCard: React.FC<{ media: InstagramMedia }> = ({ media }) => {
   const videoRef = useRef<Video>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   
+  // Get post details
+  const title = getPostTitle(media.caption);
+  const date = formatInstagramDate(media.timestamp);
+  const badge = getPostBadgeInfo(media);
+  
+  // Handle play/pause for videos
   const handlePlayPause = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pauseAsync();
-      } else {
-        videoRef.current.playAsync();
-      }
-      setIsPlaying(!isPlaying);
+    if (media.media_type !== 'VIDEO' || !videoRef.current) return;
+    
+    if (isPlaying) {
+      videoRef.current.pauseAsync();
+    } else {
+      videoRef.current.playAsync();
     }
+    setIsPlaying(!isPlaying);
+  };
+  
+  // Open Instagram link when card is pressed
+  const handlePress = () => {
+    if (media.permalink) {
+      // For a full app, you'd use Linking.openURL here
+      console.log(`Opening Instagram link: ${media.permalink}`);
+    }
+  };
+  
+  const handleLoadStart = () => {
+    setLoading(true);
+    setError(false);
+  };
+  
+  const handleLoadEnd = () => {
+    setLoading(false);
+  };
+  
+  const handleError = () => {
+    setLoading(false);
+    setError(true);
   };
   
   return (
     <View style={styles.recapContainer}>
-      <View style={styles.videoContainer}>
-        <Video
-          ref={videoRef}
-          source={videoSource}
-          style={styles.video}
-          useNativeControls={false}
-          resizeMode={ResizeMode.COVER}
-          isLooping
-          onPlaybackStatusUpdate={(status: any) => {
-            if (status.isLoaded) {
-              setIsPlaying(status.isPlaying);
-            }
-          }}
-        />
-        
-        {!isPlaying && (
-          <TouchableOpacity 
-            style={styles.playButtonContainer}
-            onPress={handlePlayPause}
-            activeOpacity={0.8}
-          >
-            <View style={styles.playButton}>
-              <Feather name="play" size={24} color="white" />
-            </View>
-          </TouchableOpacity>
+      <TouchableOpacity 
+        style={styles.videoContainer}
+        onPress={handlePress}
+        activeOpacity={0.9}
+      >
+        {/* Media Content (Image or Video) */}
+        {media.media_type === 'VIDEO' ? (
+          <>
+            <Video
+              ref={videoRef}
+              source={{ uri: media.media_url }}
+              style={styles.video}
+              useNativeControls={false}
+              resizeMode={ResizeMode.COVER}
+              isLooping
+              onPlaybackStatusUpdate={(status: any) => {
+                if (status.isLoaded) {
+                  setIsPlaying(status.isPlaying);
+                  setLoading(false);
+                }
+              }}
+              onLoadStart={handleLoadStart}
+              onError={handleError}
+            />
+            
+            {!isPlaying && (
+              <TouchableOpacity 
+                style={styles.playButtonContainer}
+                onPress={handlePlayPause}
+                activeOpacity={0.8}
+              >
+                <View style={styles.playButton}>
+                  <Feather name="play" size={24} color="white" />
+                </View>
+              </TouchableOpacity>
+            )}
+            
+            {isPlaying && (
+              <TouchableOpacity 
+                style={styles.pauseButtonContainer} 
+                onPress={handlePlayPause}
+                activeOpacity={0.8}
+              >
+                <View style={styles.pauseButton}>
+                  <Feather name="pause" size={16} color="white" />
+                </View>
+              </TouchableOpacity>
+            )}
+          </>
+        ) : (
+          <Image 
+            source={{ 
+              uri: media.media_url || media.thumbnail_url || 'https://dummyimage.com/600x400/000/fff&text=CIFA'
+            }} 
+            style={styles.image}
+            onLoadStart={handleLoadStart}
+            onLoad={handleLoadEnd}
+            onError={handleError}
+          />
         )}
         
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="white" />
+          </View>
+        )}
+        
+        {error && (
+          <View style={styles.errorContainer}>
+            <Feather name="alert-triangle" size={24} color="white" />
+            <Text style={styles.errorText}>Media unavailable</Text>
+          </View>
+        )}
+        
+        {/* Title Gradient Overlay */}
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.7)']}
           style={styles.titleGradient}
@@ -73,6 +156,7 @@ const VideoCard: React.FC<VideoItemProps> = ({ title, date, videoSource, badge, 
           <Text style={styles.date}>{date}</Text>
         </LinearGradient>
         
+        {/* Badge */}
         <View style={styles.badgeContainer}>
           <LinearGradient
             colors={badge.colors as [string, string]}
@@ -83,85 +167,79 @@ const VideoCard: React.FC<VideoItemProps> = ({ title, date, videoSource, badge, 
             <Text style={styles.badgeText}>{badge.text}</Text>
           </LinearGradient>
         </View>
-
-        {isPlaying && (
-          <TouchableOpacity 
-            style={styles.pauseButtonContainer} 
-            onPress={handlePlayPause}
-            activeOpacity={0.8}
-          >
-            <View style={styles.pauseButton}>
-              <Feather name="pause" size={16} color="white" />
-            </View>
-          </TouchableOpacity>
-        )}
-      </View>
+      </TouchableOpacity>
     </View>
   );
 };
 
 const MatchRecap: React.FC<MatchRecapProps> = ({ onViewAll }) => {
-  // Use local video file - will be loaded from assets
-  const localVideo = require('../../../assets/images/bt-boys.mp4');
-  const localVideo2 = require('../../../assets/images/charley.mp4');
-  const localVideo3 = require('../../../assets/images/bts.mp4');
-  const localVideo4 = require('../../../assets/images/mike.mp4');
-  const localVideo5 = require('../../../assets/images/coach.mp4');
-   
-  // Mock data for multiple videos
-  const videos: VideoItemProps[] = [
-    {
-      title: "Bodden Town Wins CIFA President Cup",
-      date: "April 12, 2025",
-      videoSource: localVideo,
-      badge: {
-        text: "MATCH RECAP",
-        colors: ['#0A1172', '#2F4CB3']
-      }
-    },
-    {
-      title: "Academy's Women Celebrating Victory",
-      date: "March 10, 2025",
-      videoSource: localVideo2,
-      badge: {
-        text: "Match Recap",
-        colors: ['#B51546', '#FF0844']
-      }
-    },
-    {
-      title: "BTS - Cayman's Men National Team ",
-      date: "April 8, 2025",
-      videoSource: localVideo3,
-      badge: {
-        text: "Behind the Scenes",
-        colors: ['#0A1172', '#2F4CB3']
-      }
-    },
-    {
-      title: "Head Coach's Michael Johnson / Post-Match Interview",
-      date: "April 5, 2025",
-      videoSource: localVideo4,
-      badge: {
-        text: "Interview",
-        colors: ['#0A1172', '#2F4CB3']
-      }
-    },
-    {
-      title: "CMNT Showcasing skills in Portugal",
-      date: "April 5, 2025",
-      videoSource: localVideo5,
-      badge: {
-        text: "Interview",
-        colors: ['#0A1172', '#2F4CB3']
-      }
+  const [posts, setPosts] = useState<InstagramMedia[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  
+  // Handle navigation to All Highlights page
+  const handleViewAll = () => {
+    if (onViewAll) {
+      onViewAll();
+    } else {
+      router.push('/highlights');
     }
-  ];
+  };
+  
+  // Fetch Instagram posts on component mount
+  useEffect(() => {
+    const loadInstagramPosts = async () => {
+      try {
+        setLoading(true);
+        const instagramPosts = await fetchInstagramPosts(10);
+        setPosts(instagramPosts);
+        setError(false);
+      } catch (err) {
+        console.error('Error loading Instagram posts:', err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadInstagramPosts();
+  }, []);
+  
+  // Show loading spinner while fetching posts
+  if (loading && posts.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.headerContainer}>
+          <Text style={styles.sectionTitle}>RECENT HIGHLIGHTS</Text>
+        </View>
+        <View style={styles.loadingWrapper}>
+          <ActivityIndicator size="large" color="white" />
+          <Text style={styles.loadingText}>Loading highlights...</Text>
+        </View>
+      </View>
+    );
+  }
+  
+  // Show error if fetch failed
+  if (error && posts.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.headerContainer}>
+          <Text style={styles.sectionTitle}>RECENT HIGHLIGHTS</Text>
+        </View>
+        <View style={styles.errorWrapper}>
+          <Feather name="alert-circle" size={24} color="white" />
+          <Text style={styles.errorText}>Couldn't load highlights</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <Text style={styles.sectionTitle}>RECENT HIGHLIGHTS</Text>
-        <TouchableOpacity onPress={onViewAll} style={styles.viewAllButton}>
+        <TouchableOpacity onPress={handleViewAll} style={styles.viewAllButton}>
           <Text style={styles.viewAllText}>View all</Text>
           <Feather name="chevron-right" size={16} color="#60a5fa" />
         </TouchableOpacity>
@@ -176,15 +254,8 @@ const MatchRecap: React.FC<MatchRecapProps> = ({ onViewAll }) => {
         snapToAlignment="start"
         disableIntervalMomentum={true}
       >
-        {videos.map((video, index) => (
-          <VideoCard
-            key={index}
-            title={video.title}
-            date={video.date}
-            videoSource={video.videoSource}
-            badge={video.badge}
-            onPress={() => {}}
-          />
+        {posts.map((post) => (
+          <MediaCard key={post.id} media={post} />
         ))}
       </ScrollView>
     </View>
@@ -239,6 +310,11 @@ const styles = StyleSheet.create({
   video: {
     width: '100%',
     height: '100%',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   playButtonContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -299,6 +375,36 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 10,
     color: 'rgba(255, 255, 255, 0.8)',
+  },
+  loadingWrapper: {
+    height: 150,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContainer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: 'white',
+    marginTop: 8,
+  },
+  errorWrapper: {
+    height: 150,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: 'white',
+    marginTop: 8,
   },
 });
 
