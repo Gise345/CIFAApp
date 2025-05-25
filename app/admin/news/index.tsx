@@ -1,104 +1,132 @@
 // CIFAMobileApp/app/admin/news/index.tsx
 import React, { useState, useEffect } from 'react';
 import { 
-  StyleSheet, 
   View, 
   Text, 
-  FlatList, 
-  TouchableOpacity, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity,
+  RefreshControl,
   Alert,
   ActivityIndicator,
-  RefreshControl
+  Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Link } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';
+import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  getDocs, 
+  deleteDoc,
+  doc,
+  updateDoc
+} from 'firebase/firestore';
+import { formatDistanceToNow } from 'date-fns';
 
-
-import { useAuth } from '../../../src/hooks/useAuth';
-import { useNews } from '../../../src/hooks/useNews';
-import { NewsArticle } from '../../../src/services/firebase/news';
-import { toggleFeaturedStatus, deleteNewsArticle } from '../../../src/services/firebase/news';
 import Header from '../../../src/components/common/Header';
-import Button from '../../../src/components/common/Button';
+import Card from '../../../src/components/common/Card';
+import Badge from '../../../src/components/common/Badge';
+import { firestore } from '../../../src/services/firebase/config';
+import { NewsArticle } from '../../../src/services/firebase/news';
+import { useAuth } from '../../../src/hooks/useAuth';
 
 export default function AdminNewsScreen() {
-  const router = useRouter();
   const { user, isAdmin } = useAuth();
-  const { articles, loading, error, fetchNews } = useNews();
-  
+  const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
-  // Check if user is authorized
+  const categories = [
+    'ALL',
+    'GENERAL',
+    'NATIONAL TEAM',
+    "MEN'S PREMIER LEAGUE",
+    "WOMEN'S PREMIER LEAGUE",
+    'YOUTH FOOTBALL',
+    'COACHING & DEVELOPMENT',
+    'TRANSFERS'
+  ];
+
   useEffect(() => {
-    if (user === null) {
-      // Not logged in, redirect to login
-      router.replace('/login');
-    } else if (isAdmin === false) {
-      // Logged in but not admin
-      Alert.alert('Access Denied', 'You do not have permission to access this area.');
+    if (!isAdmin) {
+      Alert.alert('Access Denied', 'You must be an admin to access this page');
       router.back();
+      return;
     }
-  }, [user, isAdmin, router]);
-
-  // Load articles on mount
-  useEffect(() => {
-    if (isAdmin) {
-      loadArticles();
-    }
+    
+    fetchArticles();
   }, [isAdmin]);
 
-  const loadArticles = async () => {
+  const fetchArticles = async () => {
+    if (!firestore) return;
+    
     try {
-      await fetchNews(undefined, 50); // Get up to 50 articles for management
-    } catch (err) {
-      console.error('Error loading articles:', err);
+      const articlesQuery = query(
+        collection(firestore, 'news'),
+        orderBy('date', 'desc')
+      );
+      
+      const snapshot = await getDocs(articlesQuery);
+      const articlesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as NewsArticle));
+      
+      setArticles(articlesData);
+    } catch (error) {
+      console.error('Error fetching articles:', error);
+      Alert.alert('Error', 'Failed to load articles');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Handle pull-to-refresh
-  const onRefresh = async () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    await loadArticles();
+    await fetchArticles();
     setRefreshing(false);
   };
 
-  // Format date for display
-  const formatDate = (timestamp: any) => {
+  const handleCreateNew = () => {
+    router.push('/admin/news/create');
+  };
+
+  const handleEditArticle = (articleId: string) => {
+    router.push(`/admin/news/edit/${articleId}`);
+  };
+
+  const handleToggleFeatured = async (articleId: string, currentFeatured: boolean) => {
+    if (!firestore) return;
+    
     try {
-      if (!timestamp) return '';
+      await updateDoc(doc(firestore, 'news', articleId), {
+        featured: !currentFeatured
+      });
       
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return formatDistanceToNow(date, { addSuffix: true });
+      // Update local state
+      setArticles(prev => prev.map(article => 
+        article.id === articleId 
+          ? { ...article, featured: !currentFeatured }
+          : article
+      ));
+      
+      Alert.alert('Success', `Article ${!currentFeatured ? 'featured' : 'unfeatured'} successfully`);
     } catch (error) {
-      return '';
+      console.error('Error updating article:', error);
+      Alert.alert('Error', 'Failed to update article');
     }
   };
 
-  // Toggle featured status
-  const handleToggleFeatured = async (articleId: string, featured: boolean) => {
-    try {
-      setActionLoading(true);
-      await toggleFeaturedStatus(articleId, !featured);
-      
-      // Refresh the list
-      await loadArticles();
-      setActionLoading(false);
-    } catch (err) {
-      console.error('Error toggling featured status:', err);
-      setActionLoading(false);
-      Alert.alert('Error', 'Failed to update article status.');
-    }
-  };
-
-  // Delete article
-  const handleDeleteArticle = (article: NewsArticle) => {
+  const handleDeleteArticle = (articleId: string, articleTitle: string) => {
+    if (!firestore) return;
+    
     Alert.alert(
-      'Confirm Delete',
-      `Are you sure you want to delete "${article.title}"? This cannot be undone.`,
+      'Delete Article',
+      `Are you sure you want to delete "${articleTitle}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -106,16 +134,12 @@ export default function AdminNewsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              setActionLoading(true);
-              await deleteNewsArticle(article.id);
-              
-              // Refresh the list
-              await loadArticles();
-              setActionLoading(false);
-            } catch (err) {
-              console.error('Error deleting article:', err);
-              setActionLoading(false);
-              Alert.alert('Error', 'Failed to delete article.');
+              await deleteDoc(doc(firestore, 'news', articleId));
+              setArticles(prev => prev.filter(article => article.id !== articleId));
+              Alert.alert('Success', 'Article deleted successfully');
+            } catch (error) {
+              console.error('Error deleting article:', error);
+              Alert.alert('Error', 'Failed to delete article');
             }
           }
         }
@@ -123,105 +147,37 @@ export default function AdminNewsScreen() {
     );
   };
 
-  // Edit article
-  const handleEditArticle = (articleId: string) => {
-    router.push(`./admin/news/edit/${articleId}`);
+  const filteredArticles = selectedCategory === 'ALL' 
+    ? articles 
+    : articles.filter(article => article.category === selectedCategory);
+
+  const formatDate = (timestamp: any) => {
+    try {
+      if (!timestamp) return 'Unknown date';
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch (error) {
+      return 'Unknown date';
+    }
   };
 
-  // Render each article in the list
-  const renderArticle = ({ item }: { item: NewsArticle }) => {
-    return (
-      <View style={styles.articleCard}>
-        <View style={styles.articleHeader}>
-          <Text 
-            style={styles.articleTitle}
-            numberOfLines={1}
-          >
-            {item.title}
-          </Text>
-          {item.featured && (
-            <View style={styles.featuredBadge}>
-              <Text style={styles.featuredText}>Featured</Text>
-            </View>
-          )}
-        </View>
-        
-        <View style={styles.articleMeta}>
-          <Text style={styles.metaText}>{item.category}</Text>
-          <Text style={styles.metaText}>•</Text>
-          <Text style={styles.metaText}>{formatDate(item.date)}</Text>
-        </View>
-        
-        <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.viewButton]}
-            onPress={() => router.push(`/news/${item.id}`)}
-          >
-            <Feather name="eye" size={16} color="#2563eb" />
-            <Text style={styles.viewButtonText}>View</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.editButton]}
-            onPress={() => handleEditArticle(item.id)}
-          >
-            <Feather name="edit-2" size={16} color="#047857" />
-            <Text style={styles.editButtonText}>Edit</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.actionButton, item.featured ? styles.unfeaturedButton : styles.featuredButton]}
-            onPress={() => handleToggleFeatured(item.id, item.featured)}
-            disabled={actionLoading}
-          >
-            <Feather 
-              name={item.featured ? "star" : "star"} 
-              size={16} 
-              color={item.featured ? "#f59e0b" : "#f59e0b"} 
-            />
-            <Text 
-              style={item.featured ? styles.unfeaturedButtonText : styles.featuredButtonText}
-            >
-              {item.featured ? "Unfeature" : "Feature"}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => handleDeleteArticle(item)}
-            disabled={actionLoading}
-          >
-            <Feather name="trash-2" size={16} color="#dc2626" />
-            <Text style={styles.deleteButtonText}>Delete</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
-  // Loading state
-  if (loading && !refreshing && articles.length === 0) {
+  if (loading) {
     return (
       <LinearGradient
         colors={['#0047AB', '#191970', '#041E42']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
         style={styles.container}
       >
         <SafeAreaView style={styles.safeArea}>
           <Header title="Manage News" showBack={true} />
-          <View style={styles.content}>
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#2563eb" />
-              <Text style={styles.loadingText}>Loading articles...</Text>
-            </View>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="white" />
+            <Text style={styles.loadingText}>Loading articles...</Text>
           </View>
         </SafeAreaView>
       </LinearGradient>
     );
   }
 
-  // Render screen
   return (
     <LinearGradient
       colors={['#0047AB', '#191970', '#041E42']}
@@ -231,59 +187,172 @@ export default function AdminNewsScreen() {
     >
       <SafeAreaView style={styles.safeArea}>
         <Header title="Manage News" showBack={true} />
-        <View style={styles.content}>
-          {actionLoading && (
-            <View style={styles.overlay}>
-              <ActivityIndicator size="large" color="#2563eb" />
-            </View>
-          )}
-          
-          <View style={styles.headerSection}>
-            <Text style={styles.titleText}>News Articles</Text>
-            <Link href="/admin/news/create" asChild>
-              <Button 
-                title="Create New" 
-                onPress={() => {}}
-                style={styles.createButton}
-              />
-            </Link>
+        
+        {/* Stats Bar */}
+        <View style={styles.statsBar}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{articles.length}</Text>
+            <Text style={styles.statLabel}>Total Articles</Text>
           </View>
-          
-          {error ? (
-            <View style={styles.errorContainer}>
-              <Feather name="alert-circle" size={40} color="#ef4444" />
-              <Text style={styles.errorText}>Failed to load articles</Text>
-              <Button 
-                title="Retry" 
-                onPress={loadArticles}
-                style={styles.retryButton}
-              />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>
+              {articles.filter(a => a.featured).length}
+            </Text>
+            <Text style={styles.statLabel}>Featured</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.createButton}
+            onPress={handleCreateNew}
+          >
+            <Feather name="plus" size={20} color="white" />
+            <Text style={styles.createButtonText}>New Article</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Category Filter */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoryScroll}
+          contentContainerStyle={styles.categoryContainer}
+        >
+          {categories.map(category => (
+            <TouchableOpacity
+              key={category}
+              style={[
+                styles.categoryButton,
+                selectedCategory === category && styles.categoryButtonActive
+              ]}
+              onPress={() => setSelectedCategory(category)}
+            >
+              <Text 
+                style={[
+                  styles.categoryText,
+                  selectedCategory === category && styles.categoryTextActive
+                ]}
+              >
+                {category}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Articles List */}
+        <ScrollView 
+          style={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#2563eb"
+            />
+          }
+        >
+          {filteredArticles.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Feather name="file-text" size={48} color="#9ca3af" />
+              <Text style={styles.emptyText}>No articles found</Text>
+              <TouchableOpacity 
+                style={styles.emptyButton}
+                onPress={handleCreateNew}
+              >
+                <Text style={styles.emptyButtonText}>Create First Article</Text>
+              </TouchableOpacity>
             </View>
           ) : (
-            <FlatList
-              data={articles}
-              renderItem={renderArticle}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.listContent}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-              }
-              ListEmptyComponent={() => (
-                <View style={styles.emptyContainer}>
-                  <Feather name="file-text" size={40} color="#6b7280" />
-                  <Text style={styles.emptyText}>No articles found</Text>
-                  <Link href="/admin/news/create" asChild>
-                    <Button 
-                      title="Create First Article" 
-                      onPress={() => {}}
-                      style={styles.emptyButton}
+            filteredArticles.map(article => (
+              <Card key={article.id} style={styles.articleCard}>
+                <View style={styles.articleContent}>
+                  {article.thumbnailUrl ? (
+                    <Image 
+                      source={{ uri: article.thumbnailUrl }} 
+                      style={styles.articleThumbnail}
                     />
-                  </Link>
+                  ) : (
+                    <View style={styles.thumbnailPlaceholder}>
+                      <Feather name="image" size={24} color="#9ca3af" />
+                    </View>
+                  )}
+                  
+                  <View style={styles.articleInfo}>
+                    <View style={styles.articleHeader}>
+                      <Text style={styles.articleTitle} numberOfLines={2}>
+                        {article.title}
+                      </Text>
+                      <View style={styles.articleBadges}>
+                        <Badge 
+                          text={article.category} 
+                          variant="primary" 
+                          style={styles.categoryBadge}
+                        />
+                        {article.featured && (
+                          <Badge 
+                            text="FEATURED" 
+                            variant="warning" 
+                            style={styles.featuredBadge}
+                          />
+                        )}
+                      </View>
+                    </View>
+                    
+                    {article.summary && (
+                      <Text style={styles.articleSummary} numberOfLines={2}>
+                        {article.summary}
+                      </Text>
+                    )}
+                    
+                    <View style={styles.articleMeta}>
+                      <Text style={styles.articleAuthor}>
+                        <Feather name="user" size={12} color="#6b7280" /> {article.author}
+                      </Text>
+                      <Text style={styles.articleDate}>
+                        <Feather name="clock" size={12} color="#6b7280" /> {formatDate(article.date)}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-              )}
-            />
+                
+                {/* Action Buttons */}
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => handleEditArticle(article.id)}
+                  >
+                    <Feather name="edit-2" size={18} color="#2563eb" />
+                    <Text style={styles.actionButtonText}>Edit</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => handleToggleFeatured(article.id, article.featured)}
+                  >
+                    <Feather 
+                      name={article.featured ? "star" : "star"} 
+                      size={18} 
+                      color="#f59e0b" 
+                    />
+                    <Text style={styles.actionButtonText}>
+                      {article.featured ? 'Unfeature' : 'Feature'}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => handleDeleteArticle(article.id, article.title)}
+                  >
+                    <Feather name="trash-2" size={18} color="#ef4444" />
+                    <Text style={[styles.actionButtonText, styles.deleteButtonText]}>
+                      Delete
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </Card>
+            ))
           )}
-        </View>
+          
+          {/* Footer spacing */}
+          <View style={styles.footer} />
+        </ScrollView>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -296,180 +365,201 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  content: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    zIndex: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  titleText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  createButton: {
-    minWidth: 100,
-  },
-  listContent: {
-    padding: 16,
-    paddingBottom: 40,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
-    color: '#6b7280',
+    color: 'white',
   },
-  errorContainer: {
+  statsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  statItem: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  errorText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginBottom: 20,
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
   },
-  retryButton: {
-    minWidth: 120,
+  statLabel: {
+    fontSize: 12,
+    color: '#cbd5e1',
+    marginTop: 2,
   },
-  emptyContainer: {
+  createButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
+    backgroundColor: '#10b981',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  emptyText: {
-    fontSize: 16,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginTop: 12,
-    marginBottom: 20,
+  createButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
   },
-  emptyButton: {
-    minWidth: 180,
+  categoryScroll: {
+    maxHeight: 50,
+  },
+  categoryContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  categoryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  categoryButtonActive: {
+    backgroundColor: 'white',
+    borderColor: 'white',
+  },
+  categoryText: {
+    fontSize: 14,
+    color: 'white',
+    fontWeight: '500',
+  },
+  categoryTextActive: {
+    color: '#1e3a8a',
+  },
+  content: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   articleCard: {
-    backgroundColor: 'white',
-    borderRadius: 8,
+    margin: 16,
+    marginBottom: 8,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  articleContent: {
+    flexDirection: 'row',
     padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+  },
+  articleThumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  thumbnailPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  articleInfo: {
+    flex: 1,
   },
   articleHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 8,
   },
   articleTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#111827',
-    flex: 1,
+    marginBottom: 4,
+  },
+  articleBadges: {
+    flexDirection: 'row',
+    marginTop: 4,
+  },
+  categoryBadge: {
+    marginRight: 6,
   },
   featuredBadge: {
-    backgroundColor: '#fef3c7',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 8,
+    marginRight: 6,
   },
-  featuredText: {
-    fontSize: 12,
-    color: '#d97706',
-    fontWeight: '500',
+  articleSummary: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 8,
+    lineHeight: 20,
   },
   articleMeta: {
     flexDirection: 'row',
-    marginBottom: 16,
     alignItems: 'center',
   },
-  metaText: {
+  articleAuthor: {
     fontSize: 12,
     color: '#6b7280',
-    marginRight: 6,
+    marginRight: 12,
+  },
+  articleDate: {
+    fontSize: 12,
+    color: '#6b7280',
   },
   actionButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
   },
   actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 6,
-    borderRadius: 4,
-    flex: 1,
     justifyContent: 'center',
-    marginHorizontal: 2,
+    paddingVertical: 12,
+    borderRightWidth: 1,
+    borderRightColor: '#f3f4f6',
   },
-  viewButton: {
-    backgroundColor: '#eff6ff',
-  },
-  viewButtonText: {
-    marginLeft: 4,
-    fontSize: 12,
+  actionButtonText: {
+    fontSize: 14,
     color: '#2563eb',
-    fontWeight: '500',
-  },
-  editButton: {
-    backgroundColor: '#ecfdf5',
-  },
-  editButtonText: {
-    marginLeft: 4,
-    fontSize: 12,
-    color: '#047857',
-    fontWeight: '500',
-  },
-  featuredButton: {
-    backgroundColor: '#fffbeb',
-  },
-  featuredButtonText: {
-    marginLeft: 4,
-    fontSize: 12,
-    color: '#d97706',
-    fontWeight: '500',
-  },
-  unfeaturedButton: {
-    backgroundColor: '#fffbeb',
-  },
-  unfeaturedButtonText: {
-    marginLeft: 4,
-    fontSize: 12,
-    color: '#d97706',
+    marginLeft: 6,
     fontWeight: '500',
   },
   deleteButton: {
-    backgroundColor: '#fef2f2',
+    borderRightWidth: 0,
   },
   deleteButtonText: {
-    marginLeft: 4,
-    fontSize: 12,
-    color: '#dc2626',
+    color: '#ef4444',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6b7280',
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  emptyButton: {
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  emptyButtonText: {
+    color: 'white',
+    fontSize: 14,
     fontWeight: '500',
+  },
+  footer: {
+    height: 40,
   },
 });

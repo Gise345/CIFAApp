@@ -1,32 +1,30 @@
 // CIFAMobileApp/app/admin/news/create.tsx
-import React, { useEffect } from 'react';
-import { StyleSheet, View, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  StyleSheet, 
+  Alert
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 
-import { useAuth } from '../../../src/hooks/useAuth';
 import Header from '../../../src/components/common/Header';
 import NewsForm from '../../../src/components/news/NewsForm';
+import { useAuth } from '../../../src/hooks/useAuth';
 
 export default function CreateNewsScreen() {
-  const router = useRouter();
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
 
-  // Check if user is authorized
   useEffect(() => {
-    if (user === null) {
-      // Not logged in, redirect to login
-      router.replace('/login');
-    } else if (isAdmin === false) {
-      // Logged in but not admin
-      Alert.alert('Access Denied', 'You do not have permission to access this area.');
+    if (!isAdmin) {
+      Alert.alert('Access Denied', 'You must be an admin to access this page');
       router.back();
     }
-  }, [user, isAdmin, router]);
+  }, [isAdmin]);
 
   const handleSaveSuccess = () => {
-    router.replace('./admin/news');
+    router.back();
   };
 
   return (
@@ -38,6 +36,7 @@ export default function CreateNewsScreen() {
     >
       <SafeAreaView style={styles.safeArea}>
         <Header title="Create Article" showBack={true} />
+        
         <View style={styles.content}>
           <NewsForm onSaveSuccess={handleSaveSuccess} />
         </View>
@@ -58,6 +57,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    overflow: 'hidden',
-  }
+  },
 });
