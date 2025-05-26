@@ -44,7 +44,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({ children }) 
   // Set up auth state listener
   useEffect(() => {
     if (!connectionChecked) return;
-    
+    if (!auth) return;
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setInitializing(false);

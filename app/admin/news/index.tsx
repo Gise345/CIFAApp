@@ -122,8 +122,6 @@ export default function AdminNewsScreen() {
   };
 
   const handleDeleteArticle = (articleId: string, articleTitle: string) => {
-    if (!firestore) return;
-    
     Alert.alert(
       'Delete Article',
       `Are you sure you want to delete "${articleTitle}"?`,
@@ -133,6 +131,11 @@ export default function AdminNewsScreen() {
           text: 'Delete', 
           style: 'destructive',
           onPress: async () => {
+            if (!firestore) {
+              Alert.alert('Error', 'Database connection not available');
+              return;
+            }
+            
             try {
               await deleteDoc(doc(firestore, 'news', articleId));
               setArticles(prev => prev.filter(article => article.id !== articleId));
