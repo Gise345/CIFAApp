@@ -19,7 +19,9 @@ module.exports = {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#ffffff"
       },
-      edgeToEdgeEnabled: true
+      edgeToEdgeEnabled: true,
+       package: "com.invovibe.cifaapp",
+       googleServicesFile: "./google-services.json"
     },
     web: {
       bundler: "metro",
@@ -30,6 +32,19 @@ module.exports = {
       "expo-router",
       "@react-native-firebase/app",
       "expo-av",
+      [
+        "expo-build-properties",
+        {
+          android: {
+            compileSdkVersion: 34,
+            targetSdkVersion: 34,
+            buildToolsVersion: "34.0.0"
+          },
+          ios: {
+            deploymentTarget: "13.4"
+          }
+        }
+      ]
     ],
     experiments: {
       typedRoutes: true
@@ -44,6 +59,10 @@ module.exports = {
       firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
       firebaseMeasurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 
+      googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+      router: {
+        origin: false
+      },
       eas: {
       projectId: "f3f0c936-d5b2-4a7f-8884-3b00ff83d6e1"
       },
