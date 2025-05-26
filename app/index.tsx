@@ -1,29 +1,14 @@
-// app/index.tsx
-import { Redirect } from 'expo-router';
-import { useAuth } from '../src/hooks/useAuth';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+// app/index.tsx - Entry point that goes directly to home
+import { useEffect } from 'react';
+import { router } from 'expo-router';
 
 export default function Index() {
-  const { user, loading } = useAuth();
+  useEffect(() => {
+    // Always redirect to home page first
+    // Users can login/register from the More tab
+    router.replace('/(tabs)/');
+  }, []);
 
-  // Show loading while checking auth status
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#2563eb" />
-      </View>
-    );
-  }
-
-  // Redirect based on authentication status
-  return <Redirect href={user ? "/(tabs)" : "/(auth)/login"} />;
+  // Return null while redirecting
+  return null;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
-  },
-});

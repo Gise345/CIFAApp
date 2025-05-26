@@ -1,5 +1,5 @@
-// CIFAMobileApp/app/(tabs)/more.tsx
-import React, { useEffect, useState } from 'react';
+// app/(tabs)/more.tsx - Fixed Admin Portal Navigation
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View, Text, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -13,8 +13,18 @@ export default function MoreScreen() {
   const { user, authUser, isAdmin, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
 
+  const safeNavigate = (route: string) => {
+    try {
+      console.log('Navigating to:', route);
+      router.push(route as any);
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Navigation Error', 'Could not navigate to the requested page.');
+    }
+  };
+
   const handleSignIn = () => {
-    router.push('/login');
+    safeNavigate('/(auth)/login');
   };
 
   const handleSignOut = async () => {
@@ -30,7 +40,7 @@ export default function MoreScreen() {
             try {
               setSigningOut(true);
               await signOut();
-              router.replace('/login');
+              // Stay on the same page, just update the UI
             } catch (error) {
               Alert.alert('Error', 'Failed to sign out. Please try again.');
             } finally {
@@ -43,35 +53,73 @@ export default function MoreScreen() {
   };
 
   const handleAdminPortal = () => {
-    router.push('/admin');
+    console.log('Admin portal clicked');
+    console.log('User:', user?.email);
+    console.log('Is Admin:', isAdmin);
+    
+    if (!user) {
+      Alert.alert('Login Required', 'Please log in first.');
+      handleSignIn();
+      return;
+    }
+    
+    if (!isAdmin) {
+      Alert.alert('Access Denied', 'You do not have admin privileges.');
+      return;
+    }
+    
+    // Force navigation to admin portal
+    try {
+      console.log('Navigating to admin portal...');
+      router.push('/admin/' as any);
+    } catch (error) {
+      console.error('Admin portal navigation error:', error);
+      // Try alternative navigation method
+      try {
+        router.replace('/admin/' as any);
+      } catch (fallbackError) {
+        console.error('Fallback admin navigation also failed:', fallbackError);
+        Alert.alert('Navigation Error', 'Could not access admin portal. Please try again.');
+      }
+    }
   };
 
   const handleProfile = () => {
-    router.push('/profile');
-  };
-
-  const handleFavoriteTeams = () => {
-    router.push('/favorites');
+    if (!user) {
+      Alert.alert('Login Required', 'Please log in to view your profile.');
+      handleSignIn();
+      return;
+    }
+    safeNavigate('/profile');
   };
 
   const handleNotificationSettings = () => {
-    router.push('/notification-settings');
+    if (!user) {
+      Alert.alert('Login Required', 'Please log in to manage notification settings.');
+      handleSignIn();
+      return;
+    }
+    safeNavigate('/notification-settings');
+  };
+
+  const handleFavoriteTeams = () => {
+    safeNavigate('/favorites');
   };
 
   const handleAboutCIFA = () => {
-    router.push('/about');
+    safeNavigate('/about');
   };
 
   const handleContactUs = () => {
-    router.push('/contact');
+    safeNavigate('/contact');
   };
 
   const handlePrivacyPolicy = () => {
-    router.push('/privacy-policy');
+    safeNavigate('/privacy-policy');
   };
 
   const handleTerms = () => {
-    router.push('/terms');
+    safeNavigate('/terms');
   };
 
   return (
@@ -117,16 +165,19 @@ export default function MoreScreen() {
 
                 <TouchableOpacity style={styles.menuItem} onPress={handleProfile}>
                   <Feather name="user" size={20} color="#2563eb" style={styles.menuIcon} />
-                  <Text style={styles.menuText}>Edit Profile</Text>
+                  <Text style={styles.menuText}>Profile</Text>
                   <Feather name="chevron-right" size={20} color="#9ca3af" />
                 </TouchableOpacity>
 
                 {/* Admin Portal - Only visible to admins */}
                 {isAdmin && (
-                  <TouchableOpacity style={styles.menuItem} onPress={handleAdminPortal}>
+                  <TouchableOpacity 
+                    style={[styles.menuItem, styles.adminMenuItem]} 
+                    onPress={handleAdminPortal}
+                  >
                     <Feather name="shield" size={20} color="#ef4444" style={styles.menuIcon} />
-                    <Text style={styles.menuText}>Admin Portal</Text>
-                    <Feather name="chevron-right" size={20} color="#9ca3af" />
+                    <Text style={[styles.menuText, styles.adminMenuText]}>Admin Portal</Text>
+                    <Feather name="chevron-right" size={20} color="#ef4444" />
                   </TouchableOpacity>
                 )}
 
@@ -168,6 +219,7 @@ export default function MoreScreen() {
             )}
           </View>
           
+          {/* App Settings Section */}
           <View style={styles.section}>
             <Text style={styles.sectionHeader}>APP</Text>
             
@@ -196,6 +248,7 @@ export default function MoreScreen() {
             </TouchableOpacity>
           </View>
           
+          {/* About Section */}
           <View style={styles.section}>
             <Text style={styles.sectionHeader}>ABOUT</Text>
             
@@ -218,6 +271,17 @@ export default function MoreScreen() {
             </TouchableOpacity>
           </View>
           
+          {/* Debug Info for Admin (only show in development) */}
+          {__DEV__ && user && (
+            <View style={styles.section}>
+              <Text style={styles.sectionHeader}>DEBUG INFO</Text>
+              <Text style={styles.debugText}>User Email: {user.email}</Text>
+              <Text style={styles.debugText}>Is Admin: {isAdmin ? 'Yes' : 'No'}</Text>
+              <Text style={styles.debugText}>User ID: {user.uid}</Text>
+            </View>
+          )}
+          
+          {/* Footer */}
           <View style={styles.footer}>
             <View style={styles.logoContainer}>
               <Text style={styles.logoText}>CIFA</Text>
@@ -340,6 +404,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
   },
+  adminMenuItem: {
+    backgroundColor: '#fef2f2',
+    marginHorizontal: -15,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+  },
   menuIcon: {
     marginRight: 15,
   },
@@ -347,6 +417,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#111827',
     flex: 1,
+  },
+  adminMenuText: {
+    color: '#ef4444',
+    fontWeight: '600',
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 4,
   },
   footer: {
     alignItems: 'center',

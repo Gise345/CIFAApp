@@ -1,96 +1,173 @@
-// src/utils/navigation.ts
+// src/utils/navigation.ts - Fixed for SDK 53
 import { router } from 'expo-router';
 
 /**
  * Navigation utility for the CIFA Mobile App
- * Provides consistent navigation throughout the app
+ * Provides consistent navigation throughout the app with SDK 53 compatibility
  */
+
+// Safe navigation wrapper
+const safeNavigate = (route: string) => {
+  try {
+    router.push(route as any);
+  } catch (error) {
+    console.error('Navigation error:', error);
+    // Fallback navigation
+    try {
+      router.replace(route as any);
+    } catch (fallbackError) {
+      console.error('Fallback navigation also failed:', fallbackError);
+    }
+  }
+};
 
 // Main tabs
 export const navigateToHome = () => {
-  router.push('/');
+  safeNavigate('/(tabs)/');
 };
 
 export const navigateToStats = () => {
-  router.push('/stats');
+  safeNavigate('/(tabs)/stats');
 };
 
 export const navigateToClubs = () => {
-  router.push('/clubs');
+  safeNavigate('/(tabs)/clubs');
 };
 
 export const navigateToNational = () => {
-  router.push('/national');
+  safeNavigate('/(tabs)/national');
 };
 
 export const navigateToNews = () => {
-  router.push('/news');
+  safeNavigate('/(tabs)/news');
 };
 
 export const navigateToMore = () => {
-  router.push('/more');
+  safeNavigate('/(tabs)/more');
+};
+
+// Admin routes
+export const navigateToAdmin = () => {
+  safeNavigate('/admin');
+};
+
+export const navigateToAdminNews = () => {
+  safeNavigate('/admin/news');
+};
+
+export const navigateToAdminMatches = () => {
+  safeNavigate('/admin/matches');
+};
+
+export const navigateToAdminTeams = () => {
+  safeNavigate('/admin/teams');
+};
+
+export const navigateToAdminUsers = () => {
+  safeNavigate('/admin/users');
+};
+
+export const navigateToAdminNotifications = () => {
+  safeNavigate('/admin/notifications');
+};
+
+export const navigateToFirebaseTest = () => {
+  safeNavigate('/admin/firebase-test');
+};
+
+// Auth routes
+export const navigateToLogin = () => {
+  safeNavigate('/(auth)/login');
+};
+
+export const navigateToRegister = () => {
+  safeNavigate('/(auth)/register');
+};
+
+// Profile and settings
+export const navigateToProfile = () => {
+  safeNavigate('/profile');
+};
+
+export const navigateToNotificationSettings = () => {
+  safeNavigate('/notification-settings');
 };
 
 // Stats and League Routes
 export const navigateToLeagueStats = (leagueId: string) => {
-  router.push(`/stats?leagueId=${leagueId}`);
+  safeNavigate(`/stats?leagueId=${leagueId}`);
 };
 
 export const navigateToLeagueStandings = (leagueId: string) => {
-  router.push(`/leagues/${leagueId}/standings`);
+  safeNavigate(`/leagues/${leagueId}/standings`);
 };
 
 export const navigateToLeagueFixtures = (leagueId: string) => {
-  router.push(`/leagues/${leagueId}/fixtures`);
+  safeNavigate(`/leagues/${leagueId}/fixtures`);
 };
 
 export const navigateToTopScorers = (categoryId: string) => {
-  router.push(`/stats/top-scorers?categoryId=${categoryId}`);
+  safeNavigate(`/stats/top-scorers?categoryId=${categoryId}`);
 };
 
 export const navigateToTeamStats = (categoryId: string) => {
-  router.push(`/stats/team-stats-detail?categoryId=${categoryId}`);
+  safeNavigate(`/stats/team-stats-detail?categoryId=${categoryId}`);
 };
 
 // Team Routes
 export const navigateToTeamProfile = (teamId: string) => {
-  router.push(`/teams/${teamId}`);
+  safeNavigate(`/teams/${teamId}`);
 };
 
 export const navigateToTeamFixtures = (teamId: string) => {
-  router.push(`/teams/${teamId}/fixtures`);
+  safeNavigate(`/teams/${teamId}/fixtures`);
 };
 
 export const navigateToTeamSquad = (teamId: string) => {
-  router.push(`/teams/${teamId}/squad`);
+  safeNavigate(`/teams/${teamId}/squad`);
 };
 
 export const navigateToTeamStatsPage = (teamId: string) => {
-  router.push(`/teams/${teamId}/stats`);
+  safeNavigate(`/teams/${teamId}/stats`);
 };
 
 // Match and Fixture Routes
 export const navigateToFixtureDetails = (fixtureId: string) => {
-  router.push(`/fixtures/${fixtureId}`);
+  safeNavigate(`/fixtures/${fixtureId}`);
 };
 
 export const navigateToLiveMatch = (matchId: string) => {
-  router.push(`/matches/live/${matchId}`);
+  safeNavigate(`/matches/live/${matchId}`);
 };
 
 // Player Routes
 export const navigateToPlayerProfile = (playerId: string) => {
-  router.push(`/players/${playerId}`);
+  safeNavigate(`/players/${playerId}`);
 };
 
 // News Routes
 export const navigateToNewsArticle = (newsId: string) => {
-  router.push(`/news/${newsId}`);
+  safeNavigate(`/news/${newsId}`);
 };
 
 // Return to previous screen
 export const goBack = () => {
-  router.back();
+  try {
+    router.back();
+  } catch (error) {
+    console.error('Back navigation error:', error);
+    // Fallback to home
+    navigateToHome();
+  }
+};
+
+// Replace current route
+export const replaceRoute = (route: string) => {
+  try {
+    router.replace(route as any);
+  } catch (error) {
+    console.error('Replace navigation error:', error);
+  }
 };
 
 // Utility for building route params
