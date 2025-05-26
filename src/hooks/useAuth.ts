@@ -95,6 +95,9 @@ export const useAuth = (): UseAuthReturn => {
     try {
       setLoading(true);
       setError(null);
+      if (!auth) {
+        throw new Error('Auth instance is not initialized');
+      }
       await signInWithEmailAndPassword(auth, email, password);
       setLoading(false);
     } catch (error) {
@@ -112,6 +115,9 @@ export const useAuth = (): UseAuthReturn => {
       setError(null);
       
       // Create user in Firebase Auth
+      if (!auth) {
+        throw new Error('Auth instance is not initialized');
+      }
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
@@ -149,6 +155,9 @@ export const useAuth = (): UseAuthReturn => {
   const signOut = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
+      if (!auth) {
+        throw new Error('Auth instance is not initialized');
+      }
       await firebaseSignOut(auth);
       setLoading(false);
     } catch (error) {

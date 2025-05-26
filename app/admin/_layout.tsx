@@ -12,9 +12,9 @@ export default function AdminLayout() {
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        router.replace('/(auth)/login');
+        router.replace('/login');
       } else if (!isAdmin) {
-        router.replace('/(tabs)');
+        router.replace('/home');
       }
     }
   }, [user, isAdmin, loading]);

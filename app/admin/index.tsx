@@ -8,12 +8,13 @@ import {
   ScrollView, 
   Alert,
   RefreshControl,
-  ActivityIndicator
+  ActivityIndicator,
+  Dimensions
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { 
   collection, 
   query, 
@@ -21,42 +22,64 @@ import {
   orderBy, 
   limit, 
   getDocs,
-  Timestamp 
+  Timestamp,
+  getCountFromServer
 } from 'firebase/firestore';
 import { firestore } from '../../src/services/firebase/config';
+import { LineChart } from 'react-native-chart-kit';
 
 import Header from '../../src/components/common/Header';
 import Card from '../../src/components/common/Card';
 import { useAuth } from '../../src/hooks/useAuth';
 
-interface AdminMenuCardProps {
-  title: string;
-  icon: string;
-  onPress: () => void;
-  color?: string;
-  count?: number;
-  subtitle?: string;
-}
+const { width: screenWidth } = Dimensions.get('window');
 
 interface DashboardStats {
+  totalUsers: number;
+  activeUsers: number;
   totalNews: number;
   totalMatches: number;
   totalTeams: number;
   totalPlayers: number;
   recentNews: number;
   upcomingMatches: number;
+  liveMatches: number;
+  completedMatches: number;
+  totalNotifications: number;
+  engagementRate: number;
+}
+
+interface ChartData {
+  labels: string[];
+  datasets: Array<{
+    data: number[];
+    color?: (opacity: number) => string;
+    strokeWidth?: number;
+  }>;
 }
 
 export default function AdminDashboardScreen() {
   const router = useRouter();
   const { user, isAdmin } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
+    totalUsers: 0,
+    activeUsers: 0,
     totalNews: 0,
     totalMatches: 0,
     totalTeams: 0,
     totalPlayers: 0,
     recentNews: 0,
-    upcomingMatches: 0
+    upcomingMatches: 0,
+    liveMatches: 0,
+    completedMatches: 0,
+    totalNotifications: 0,
+    engagementRate: 0
+  });
+  const [chartData, setChartData] = useState<ChartData>({
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    datasets: [{
+      data: [0, 0, 0, 0, 0, 0, 0]
+    }]
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -76,38 +99,96 @@ export default function AdminDashboardScreen() {
     if (!firestore) return;
     
     try {
-      // Get total counts
-      const [newsSnapshot, matchesSnapshot, teamsSnapshot, playersSnapshot] = await Promise.all([
-        getDocs(collection(firestore, 'news')),
-        getDocs(collection(firestore, 'matches')),
-        getDocs(collection(firestore, 'teams')),
-        getDocs(collection(firestore, 'players'))
+      // Get collection counts using getCountFromServer for better performance
+      const [
+        usersCount,
+        newsCount,
+        matchesCount,
+        teamsCount,
+        playersCount,
+        notificationsCount
+      ] = await Promise.all([
+        getCountFromServer(collection(firestore, 'users')),
+        getCountFromServer(collection(firestore, 'news')),
+        getCountFromServer(collection(firestore, 'matches')),
+        getCountFromServer(collection(firestore, 'teams')),
+        getCountFromServer(collection(firestore, 'players')),
+        getCountFromServer(collection(firestore, 'notifications'))
       ]);
 
-      // Get recent news (last 7 days)
+      // Get active users (last 7 days)
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const activeUsersQuery = query(
+        collection(firestore, 'users'),
+        where('lastActive', '>=', Timestamp.fromDate(sevenDaysAgo))
+      );
+      const activeUsersSnapshot = await getDocs(activeUsersQuery);
+
+      // Get recent news (last 7 days)
       const recentNewsQuery = query(
         collection(firestore, 'news'),
         where('date', '>=', Timestamp.fromDate(sevenDaysAgo))
       );
       const recentNewsSnapshot = await getDocs(recentNewsQuery);
 
-      // Get upcoming matches
-      const upcomingMatchesQuery = query(
-        collection(firestore, 'matches'),
-        where('date', '>=', Timestamp.now()),
-        where('status', '==', 'scheduled')
-      );
-      const upcomingMatchesSnapshot = await getDocs(upcomingMatchesQuery);
+      // Get match statistics
+      const now = Timestamp.now();
+      const [upcomingMatchesSnapshot, liveMatchesSnapshot, completedMatchesSnapshot] = await Promise.all([
+        getDocs(query(
+          collection(firestore, 'matches'),
+          where('date', '>=', now),
+          where('status', '==', 'scheduled')
+        )),
+        getDocs(query(
+          collection(firestore, 'matches'),
+          where('status', '==', 'live')
+        )),
+        getDocs(query(
+          collection(firestore, 'matches'),
+          where('status', '==', 'completed'),
+          orderBy('date', 'desc'),
+          limit(50)
+        ))
+      ]);
 
+      // Calculate engagement rate (simplified)
+      const engagementRate = activeUsersSnapshot.size > 0 
+        ? Math.round((activeUsersSnapshot.size / usersCount.data().count) * 100)
+        : 0;
+
+      // Generate mock chart data (in production, this would come from analytics)
+      const mockChartData = {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{
+          data: [
+            Math.floor(Math.random() * 100) + 50,
+            Math.floor(Math.random() * 100) + 50,
+            Math.floor(Math.random() * 100) + 50,
+            Math.floor(Math.random() * 100) + 50,
+            Math.floor(Math.random() * 100) + 50,
+            Math.floor(Math.random() * 100) + 100,
+            Math.floor(Math.random() * 100) + 100
+          ],
+          color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
+          strokeWidth: 2
+        }]
+      };
+
+      setChartData(mockChartData);
       setStats({
-        totalNews: newsSnapshot.size,
-        totalMatches: matchesSnapshot.size,
-        totalTeams: teamsSnapshot.size,
-        totalPlayers: playersSnapshot.size,
+        totalUsers: usersCount.data().count,
+        activeUsers: activeUsersSnapshot.size,
+        totalNews: newsCount.data().count,
+        totalMatches: matchesCount.data().count,
+        totalTeams: teamsCount.data().count,
+        totalPlayers: playersCount.data().count,
         recentNews: recentNewsSnapshot.size,
-        upcomingMatches: upcomingMatchesSnapshot.size
+        upcomingMatches: upcomingMatchesSnapshot.size,
+        liveMatches: liveMatchesSnapshot.size,
+        completedMatches: completedMatchesSnapshot.size,
+        totalNotifications: notificationsCount.data().count,
+        engagementRate
       });
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -126,8 +207,117 @@ export default function AdminDashboardScreen() {
     setRefreshing(false);
   };
 
+  const adminSections = [
+    {
+      title: 'Content Management',
+      icon: 'file-text',
+      color: '#2563eb',
+      description: 'Upload, edit, and schedule content',
+      items: [
+        { label: 'News Articles', route: '/admin/news', icon: 'file-text' },
+        { label: 'Media Gallery', route: '/admin/media', icon: 'image' },
+        { label: 'Videos', route: '/admin/videos', icon: 'video' }
+      ]
+    },
+    {
+      title: 'Stats & Data',
+      icon: 'bar-chart-2',
+      color: '#16a34a',
+      description: 'Update scores and statistics',
+      items: [
+        { label: 'Match Results', route: '/admin/matches', icon: 'calendar' },
+        { label: 'Player Stats', route: '/admin/players', icon: 'user' },
+        { label: 'Team Standings', route: '/admin/teams', icon: 'users' },
+        { label: 'Leagues', route: '/admin/leagues', icon: 'award' }
+      ]
+    },
+    {
+      title: 'Event Management',
+      icon: 'calendar',
+      color: '#f59e0b',
+      description: 'Manage schedules and fixtures',
+      items: [
+        { label: 'Match Schedule', route: '/admin/schedule', icon: 'calendar' },
+        { label: 'Fixtures', route: '/admin/fixtures', icon: 'list' },
+        { label: 'Events', route: '/admin/events', icon: 'flag' }
+      ]
+    },
+    {
+      title: 'User Management',
+      icon: 'users',
+      color: '#8b5cf6',
+      description: 'Manage accounts and permissions',
+      items: [
+        { label: 'All Users', route: '/admin/users', icon: 'users' },
+        { label: 'Roles & Permissions', route: '/admin/roles', icon: 'shield' },
+        { label: 'User Activity', route: '/admin/activity', icon: 'activity' }
+      ]
+    },
+    {
+      title: 'Communication',
+      icon: 'bell',
+      color: '#ef4444',
+      description: 'Send notifications and updates',
+      items: [
+        { label: 'Push Notifications', route: '/admin/notifications', icon: 'bell' },
+        { label: 'Email Campaigns', route: '/admin/emails', icon: 'mail' },
+        { label: 'Announcements', route: '/admin/announcements', icon: 'megaphone' }
+      ]
+    },
+    {
+      title: 'Analytics',
+      icon: 'trending-up',
+      color: '#06b6d4',
+      description: 'View engagement and performance',
+      items: [
+        { label: 'User Analytics', route: '/admin/analytics/users', icon: 'pie-chart' },
+        { label: 'Content Performance', route: '/admin/analytics/content', icon: 'bar-chart' },
+        { label: 'App Usage', route: '/admin/analytics/usage', icon: 'activity' }
+      ]
+    },
+    {
+      title: 'Moderation',
+      icon: 'shield',
+      color: '#10b981',
+      description: 'Review and moderate content',
+      items: [
+        { label: 'Comments', route: '/admin/moderation/comments', icon: 'message-square' },
+        { label: 'Reports', route: '/admin/moderation/reports', icon: 'alert-triangle' },
+        { label: 'Chat Messages', route: '/admin/moderation/chat', icon: 'message-circle' }
+      ]
+    },
+    {
+      title: 'Security',
+      icon: 'lock',
+      color: '#6366f1',
+      description: 'Manage security settings',
+      items: [
+        { label: 'Access Control', route: '/admin/security/access', icon: 'key' },
+        { label: 'Audit Logs', route: '/admin/security/logs', icon: 'file-text' },
+        { label: 'Security Settings', route: '/admin/security/settings', icon: 'settings' }
+      ]
+    }
+  ];
+
   if (!isAdmin) {
     return null;
+  }
+
+  if (loading) {
+    return (
+      <LinearGradient
+        colors={['#0047AB', '#191970', '#041E42']}
+        style={styles.container}
+      >
+        <SafeAreaView style={styles.safeArea}>
+          <Header title="Admin Dashboard" showBack={true} />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="white" />
+            <Text style={styles.loadingText}>Loading dashboard...</Text>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+    );
   }
 
   return (
@@ -156,48 +346,115 @@ export default function AdminDashboardScreen() {
               <Text style={styles.userName}>{user?.displayName || 'Admin'}</Text>
               <Text style={styles.roleText}>Administrator</Text>
             </View>
-            <View style={styles.welcomeIcon}>
-              <Feather name="shield" size={32} color="#2563eb" />
+            <View style={styles.welcomeStats}>
+              <View style={styles.welcomeStat}>
+                <Text style={styles.welcomeStatValue}>{stats.activeUsers}</Text>
+                <Text style={styles.welcomeStatLabel}>Active Users</Text>
+              </View>
+              <View style={styles.welcomeStat}>
+                <Text style={styles.welcomeStatValue}>{stats.engagementRate}%</Text>
+                <Text style={styles.welcomeStatLabel}>Engagement</Text>
+              </View>
             </View>
           </Card>
 
-          {/* Statistics Overview */}
-          <Text style={styles.sectionTitle}>Overview</Text>
-          <View style={styles.statsGrid}>
-            <Card style={styles.statCard}>
-              <View style={[styles.statIcon, { backgroundColor: '#eff6ff' }]}>
-                <Feather name="file-text" size={20} color="#2563eb" />
-              </View>
-              <Text style={styles.statValue}>{stats.totalNews}</Text>
-              <Text style={styles.statLabel}>Total Articles</Text>
-              <Text style={styles.statSubtext}>{stats.recentNews} this week</Text>
+          {/* Live Activity Chart */}
+          <Card style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Weekly User Activity</Text>
+            <LineChart
+              data={chartData}
+              width={screenWidth - 64}
+              height={200}
+              chartConfig={{
+                backgroundColor: '#ffffff',
+                backgroundGradientFrom: '#ffffff',
+                backgroundGradientTo: '#ffffff',
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
+                labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
+                style: {
+                  borderRadius: 16
+                },
+                propsForDots: {
+                  r: '6',
+                  strokeWidth: '2',
+                  stroke: '#2563eb'
+                }
+              }}
+              bezier
+              style={{
+                marginVertical: 8,
+                borderRadius: 16
+              }}
+            />
+          </Card>
+
+          {/* Key Metrics */}
+          <Text style={styles.sectionTitle}>Key Metrics</Text>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.metricsContainer}
+          >
+            <Card style={[styles.metricCard, { backgroundColor: '#dbeafe' }]}>
+              <Feather name="users" size={24} color="#2563eb" />
+              <Text style={styles.metricValue}>{stats.totalUsers}</Text>
+              <Text style={styles.metricLabel}>Total Users</Text>
             </Card>
             
-            <Card style={styles.statCard}>
-              <View style={[styles.statIcon, { backgroundColor: '#f0fdf4' }]}>
-                <Feather name="calendar" size={20} color="#16a34a" />
-              </View>
-              <Text style={styles.statValue}>{stats.totalMatches}</Text>
-              <Text style={styles.statLabel}>Total Matches</Text>
-              <Text style={styles.statSubtext}>{stats.upcomingMatches} upcoming</Text>
+            <Card style={[styles.metricCard, { backgroundColor: '#dcfce7' }]}>
+              <Feather name="calendar" size={24} color="#16a34a" />
+              <Text style={styles.metricValue}>{stats.totalMatches}</Text>
+              <Text style={styles.metricLabel}>Matches</Text>
+              <Text style={styles.metricSubtext}>{stats.liveMatches} live</Text>
             </Card>
             
-            <Card style={styles.statCard}>
-              <View style={[styles.statIcon, { backgroundColor: '#fef3c7' }]}>
-                <Feather name="users" size={20} color="#f59e0b" />
-              </View>
-              <Text style={styles.statValue}>{stats.totalTeams}</Text>
-              <Text style={styles.statLabel}>Teams</Text>
+            <Card style={[styles.metricCard, { backgroundColor: '#fef3c7' }]}>
+              <Feather name="file-text" size={24} color="#f59e0b" />
+              <Text style={styles.metricValue}>{stats.totalNews}</Text>
+              <Text style={styles.metricLabel}>Articles</Text>
+              <Text style={styles.metricSubtext}>{stats.recentNews} this week</Text>
             </Card>
             
-            <Card style={styles.statCard}>
-              <View style={[styles.statIcon, { backgroundColor: '#fce7f3' }]}>
-                <Feather name="user" size={20} color="#ec4899" />
-              </View>
-              <Text style={styles.statValue}>{stats.totalPlayers}</Text>
-              <Text style={styles.statLabel}>Players</Text>
+            <Card style={[styles.metricCard, { backgroundColor: '#fce7f3' }]}>
+              <Feather name="bell" size={24} color="#ec4899" />
+              <Text style={styles.metricValue}>{stats.totalNotifications}</Text>
+              <Text style={styles.metricLabel}>Notifications</Text>
             </Card>
-          </View>
+          </ScrollView>
+
+          {/* Management Sections */}
+          <Text style={styles.sectionTitle}>Management Tools</Text>
+          {adminSections.map((section, index) => (
+            <Card key={index} style={styles.sectionCard}>
+              <TouchableOpacity 
+                style={styles.sectionHeader}
+                onPress={() => router.push(section.items[0].route)}
+              >
+                <View style={[styles.sectionIcon, { backgroundColor: `${section.color}15` }]}>
+                  <Feather name={section.icon as any} size={24} color={section.color} />
+                </View>
+                <View style={styles.sectionInfo}>
+                  <Text style={styles.sectionCardTitle}>{section.title}</Text>
+                  <Text style={styles.sectionDescription}>{section.description}</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#9ca3af" />
+              </TouchableOpacity>
+              
+              <View style={styles.sectionItems}>
+                {section.items.map((item, itemIndex) => (
+                  <TouchableOpacity
+                    key={itemIndex}
+                    style={styles.sectionItem}
+                    onPress={() => router.push(item.route)}
+                  >
+                    <Feather name={item.icon as any} size={16} color="#6b7280" />
+                    <Text style={styles.sectionItemText}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </Card>
+          ))}
 
           {/* Quick Actions */}
           <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -227,81 +484,6 @@ export default function AdminDashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Management Sections */}
-          <Text style={styles.sectionTitle}>Management</Text>
-          <View style={styles.menuGrid}>
-            <AdminMenuCard 
-              title="News & Articles" 
-              icon="file-text"
-              subtitle="Manage articles and media"
-              color="#2563eb"
-              onPress={() => router.push('/admin/news')}
-            />
-            <AdminMenuCard 
-              title="Matches" 
-              icon="calendar"
-              subtitle="Schedule and results"
-              color="#16a34a"
-              onPress={() => router.push('/admin/matches')}
-            />
-            <AdminMenuCard 
-              title="Teams" 
-              icon="users"
-              subtitle="Teams and rosters"
-              color="#f59e0b"
-              onPress={() => router.push('/admin/teams')}
-            />
-            <AdminMenuCard 
-              title="Players" 
-              icon="user"
-              subtitle="Player profiles"
-              color="#ec4899"
-              onPress={() => router.push('/admin/players')}
-            />
-            <AdminMenuCard 
-              title="Leagues" 
-              icon="award"
-              subtitle="League management"
-              color="#8b5cf6"
-              onPress={() => router.push('/admin/leagues')}
-            />
-            <AdminMenuCard 
-              title="Statistics" 
-              icon="bar-chart-2"
-              subtitle="Update stats"
-              color="#06b6d4"
-              onPress={() => router.push('/admin/stats')}
-            />
-            <AdminMenuCard 
-              title="Notifications" 
-              icon="bell"
-              subtitle="Push notifications"
-              color="#ef4444"
-              onPress={() => router.push('/admin/notifications')}
-            />
-            <AdminMenuCard 
-              title="Media Gallery" 
-              icon="image"
-              subtitle="Photos and videos"
-              color="#10b981"
-              onPress={() => router.push('/admin/media')}
-            />
-            <AdminMenuCard 
-              title="Users" 
-              icon="user-check"
-              subtitle="User management"
-              color="#6366f1"
-              onPress={() => router.push('/admin/users')}
-            />
-            <AdminMenuCard 
-              title="Settings" 
-              icon="settings"
-              subtitle="App configuration"
-              color="#64748b"
-              onPress={() => router.push('/admin/settings')}
-            />
-          </View>
-
           {/* Footer spacing */}
           <View style={styles.footer} />
         </ScrollView>
@@ -309,29 +491,6 @@ export default function AdminDashboardScreen() {
     </LinearGradient>
   );
 }
-
-// Helper component for admin menu cards
-const AdminMenuCard: React.FC<AdminMenuCardProps> = ({ 
-  title, 
-  icon, 
-  onPress, 
-  color = '#2563eb',
-  count,
-  subtitle 
-}) => (
-  <TouchableOpacity style={styles.menuCard} onPress={onPress}>
-    <View style={[styles.menuIconContainer, { backgroundColor: `${color}15` }]}>
-      <Feather name={icon as any} size={24} color={color} />
-    </View>
-    <Text style={styles.menuTitle}>{title}</Text>
-    {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
-    {count !== undefined && (
-      <View style={[styles.countBadge, { backgroundColor: color }]}>
-        <Text style={styles.countText}>{count}</Text>
-      </View>
-    )}
-  </TouchableOpacity>
-);
 
 const styles = StyleSheet.create({
   container: {
@@ -345,6 +504,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: 'white',
   },
   welcomeCard: {
     margin: 16,
@@ -371,13 +540,32 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     marginTop: 4,
   },
-  welcomeIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#eff6ff',
-    justifyContent: 'center',
-    alignItems: 'center',
+  welcomeStats: {
+    alignItems: 'flex-end',
+  },
+  welcomeStat: {
+    alignItems: 'flex-end',
+    marginBottom: 8,
+  },
+  welcomeStatValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  welcomeStatLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  chartCard: {
+    margin: 16,
+    marginTop: 0,
+    padding: 16,
+  },
+  chartTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,
@@ -387,44 +575,86 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 12,
   },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 12,
+  metricsContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
-  statCard: {
-    width: '47%',
-    margin: '1.5%',
+  metricCard: {
     padding: 16,
+    marginRight: 12,
+    width: 140,
     alignItems: 'center',
   },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 24,
+  metricValue: {
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#111827',
+    marginTop: 8,
   },
-  statLabel: {
+  metricLabel: {
     fontSize: 14,
     color: '#6b7280',
     marginTop: 4,
   },
-  statSubtext: {
+  metricSubtext: {
     fontSize: 12,
     color: '#9ca3af',
     marginTop: 2,
   },
+  sectionCard: {
+    margin: 16,
+    marginTop: 8,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  sectionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  sectionInfo: {
+    flex: 1,
+  },
+  sectionCardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  sectionItems: {
+    paddingVertical: 8,
+  },
+  sectionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f9fafb',
+  },
+  sectionItemText: {
+    fontSize: 14,
+    color: '#374151',
+    marginLeft: 12,
+  },
   quickActions: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 16,
   },
   quickActionButton: {
     flex: 1,
@@ -439,59 +669,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     marginLeft: 6,
-  },
-  menuGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 12,
-  },
-  menuCard: {
-    width: '47%',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    margin: '1.5%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-    minHeight: 120,
-    position: 'relative',
-  },
-  menuIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  menuTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#111827',
-  },
-  menuSubtitle: {
-    fontSize: 12,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  countBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  countText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   footer: {
     height: 40,
