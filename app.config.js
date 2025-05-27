@@ -41,7 +41,7 @@ module.exports = {
             buildToolsVersion: "34.0.0"
           },
           ios: {
-            deploymentTarget: "13.4"
+            deploymentTarget: "15.1"
           }
         }
       ]

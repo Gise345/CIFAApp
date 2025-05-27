@@ -32,8 +32,11 @@
     "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",
     "expo": "~53.0.7",
+    "expo-auth-session": "~6.1.5",
     "expo-av": "^15.1.4",
+    "expo-build-properties": "^0.14.6",
     "expo-constants": "~17.1.5",
+    "expo-crypto": "~14.1.4",
     "expo-device": "^7.1.4",
     "expo-font": "~13.3.1",
     "expo-image-manipulator": "^13.1.5",
@@ -64,9 +67,7 @@
     "react-native-svg": "^15.11.2",
     "react-native-web": "~0.20.0",
     "react-router-native": "^6.30.0",
-    "undefined": "firebase/auth/react-native",
-    "expo-auth-session": "~6.1.5",
-    "expo-crypto": "~14.1.4"
+    "undefined": "firebase/auth/react-native"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
