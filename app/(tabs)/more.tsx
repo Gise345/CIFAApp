@@ -1,5 +1,5 @@
-// app/(tabs)/more.tsx - Fixed Admin Portal Navigation
-import React, { useState } from 'react';
+// app/(tabs)/more.tsx - Fixed Admin Portal Navigation with Better Timing
+import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, View, Text, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -10,8 +10,24 @@ import { useAuth } from '../../src/hooks/useAuth';
 import Card from '../../src/components/common/Card';
 
 export default function MoreScreen() {
-  const { user, authUser, isAdmin, signOut } = useAuth();
+  const { user, authUser, isAdmin, signOut, loading } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+  const [adminStatus, setAdminStatus] = useState<boolean | null>(null);
+
+  // Track admin status changes
+  useEffect(() => {
+    console.log('More Screen - Auth State:', {
+      user: user?.email,
+      isAdmin,
+      loading,
+      previousAdminStatus: adminStatus
+    });
+    
+    // Only update admin status after loading is complete
+    if (!loading && isAdmin !== null) {
+      setAdminStatus(isAdmin);
+    }
+  }, [user, isAdmin, loading]);
 
   const safeNavigate = (route: string) => {
     try {
@@ -40,6 +56,7 @@ export default function MoreScreen() {
             try {
               setSigningOut(true);
               await signOut();
+              setAdminStatus(null); // Reset admin status on sign out
               // Stay on the same page, just update the UI
             } catch (error) {
               Alert.alert('Error', 'Failed to sign out. Please try again.');
@@ -53,9 +70,12 @@ export default function MoreScreen() {
   };
 
   const handleAdminPortal = () => {
-    console.log('Admin portal clicked');
-    console.log('User:', user?.email);
-    console.log('Is Admin:', isAdmin);
+    console.log('Admin portal clicked - Current state:', {
+      user: user?.email,
+      isAdmin,
+      adminStatus,
+      loading
+    });
     
     if (!user) {
       Alert.alert('Login Required', 'Please log in first.');
@@ -63,24 +83,32 @@ export default function MoreScreen() {
       return;
     }
     
-    if (!isAdmin) {
+    // Check both isAdmin and adminStatus for better reliability
+    if (loading) {
+      Alert.alert('Loading', 'Please wait while we verify your permissions...');
+      return;
+    }
+    
+    if (!isAdmin && !adminStatus) {
       Alert.alert('Access Denied', 'You do not have admin privileges.');
       return;
     }
     
-    // Force navigation to admin portal
+    // If we've confirmed admin status, navigate
+    console.log('Navigating to admin portal - confirmed admin status');
     try {
-      console.log('Navigating to admin portal...');
       router.push('/admin/' as any);
     } catch (error) {
       console.error('Admin portal navigation error:', error);
-      // Try alternative navigation method
-      try {
-        router.replace('/admin/' as any);
-      } catch (fallbackError) {
-        console.error('Fallback admin navigation also failed:', fallbackError);
-        Alert.alert('Navigation Error', 'Could not access admin portal. Please try again.');
-      }
+      // Try alternative navigation
+      setTimeout(() => {
+        try {
+          router.replace('/admin/' as any);
+        } catch (fallbackError) {
+          console.error('Fallback admin navigation also failed:', fallbackError);
+          Alert.alert('Navigation Error', 'Could not access admin portal. Please try again.');
+        }
+      }, 100);
     }
   };
 
@@ -122,6 +150,9 @@ export default function MoreScreen() {
     safeNavigate('/terms');
   };
 
+  // Determine if we should show admin portal based on both isAdmin and adminStatus
+  const shouldShowAdminPortal = isAdmin === true || adminStatus === true;
+
   return (
     <LinearGradient
       colors={['#0047AB', '#191970', '#041E42']}
@@ -153,7 +184,7 @@ export default function MoreScreen() {
                       <Text style={styles.profileEmail}>
                         {authUser?.email}
                       </Text>
-                      {isAdmin && (
+                      {shouldShowAdminPortal && (
                         <View style={styles.adminBadge}>
                           <Feather name="shield" size={12} color="white" />
                           <Text style={styles.adminBadgeText}>Admin</Text>
@@ -170,7 +201,7 @@ export default function MoreScreen() {
                 </TouchableOpacity>
 
                 {/* Admin Portal - Only visible to admins */}
-                {isAdmin && (
+                {shouldShowAdminPortal && (
                   <TouchableOpacity 
                     style={[styles.menuItem, styles.adminMenuItem]} 
                     onPress={handleAdminPortal}
@@ -276,7 +307,9 @@ export default function MoreScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionHeader}>DEBUG INFO</Text>
               <Text style={styles.debugText}>User Email: {user.email}</Text>
-              <Text style={styles.debugText}>Is Admin: {isAdmin ? 'Yes' : 'No'}</Text>
+              <Text style={styles.debugText}>Is Admin (Hook): {isAdmin === null ? 'Loading...' : isAdmin ? 'Yes' : 'No'}</Text>
+              <Text style={styles.debugText}>Is Admin (State): {adminStatus === null ? 'Not Set' : adminStatus ? 'Yes' : 'No'}</Text>
+              <Text style={styles.debugText}>Loading: {loading ? 'Yes' : 'No'}</Text>
               <Text style={styles.debugText}>User ID: {user.uid}</Text>
             </View>
           )}

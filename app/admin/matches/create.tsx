@@ -23,7 +23,7 @@ import { firestore } from '../../../src/services/firebase/config';
 import { useAuth } from '../../../src/hooks/useAuth';
 
 export default function CreateMatchScreen() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [saving, setSaving] = useState(false);
   
   // Form fields
@@ -34,14 +34,35 @@ export default function CreateMatchScreen() {
   const [venue, setVenue] = useState('');
   const [competition, setCompetition] = useState('');
   const [leagueId, setLeagueId] = useState('');
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+
 
   useEffect(() => {
-    if (!isAdmin) {
+  // Only check auth after loading is complete
+  if (!authLoading) {
+    console.log('Create Match Screen - Auth Check:', {
+      user: user?.email,
+      isAdmin,
+      authLoading
+    });
+    
+    if (!user) {
+      Alert.alert('Authentication Required', 'Please log in to access this page');
+      router.replace('/(auth)/login');
+      return;
+    }
+    
+    if (isAdmin === false) {
       Alert.alert('Access Denied', 'You must be an admin to access this page');
       router.back();
       return;
     }
-  }, [isAdmin]);
+    
+    if (isAdmin === true) {
+      setHasCheckedAuth(true);
+    }
+  }
+}, [authLoading, user, isAdmin]);
 
   const handleSave = async () => {
     if (!homeTeam || !awayTeam || !date || !time || !venue || !competition) {
@@ -86,6 +107,29 @@ export default function CreateMatchScreen() {
       setSaving(false);
     }
   };
+
+  
+   if (authLoading || (!hasCheckedAuth && isAdmin !== false)) {
+  return (
+    <LinearGradient
+      colors={['#0047AB', '#191970', '#041E42']}
+      style={styles.container}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <Header title="Create Match" showBack={true} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="white" />
+          <Text style={styles.loadingText}>Checking permissions...</Text>
+        </View>
+      </SafeAreaView>
+    </LinearGradient>
+  );
+}
+
+// Don't render if not admin
+if (!isAdmin || !hasCheckedAuth) {
+  return null;
+}
 
   return (
     <LinearGradient
@@ -235,4 +279,14 @@ const styles = StyleSheet.create({
   saveButton: {
     marginTop: 20,
   },
+  loadingContainer: {
+  flex: 1,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+loadingText: {
+  marginTop: 16,
+  fontSize: 16,
+  color: 'white',
+}
 });

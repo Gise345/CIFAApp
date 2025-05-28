@@ -38,21 +38,41 @@ interface MediaItem {
 }
 
 export default function AdminMediaScreen() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+
 
   useEffect(() => {
-    if (!isAdmin) {
+  // Only check auth after loading is complete
+  if (!authLoading) {
+    console.log('Admin Media Screen - Auth Check:', {
+      user: user?.email,
+      isAdmin,
+      authLoading
+    });
+    
+    if (!user) {
+      Alert.alert('Authentication Required', 'Please log in to access this page');
+      router.replace('/(auth)/login');
+      return;
+    }
+    
+    if (isAdmin === false) {
       Alert.alert('Access Denied', 'You must be an admin to access this page');
       router.back();
       return;
     }
     
-    fetchMedia();
-  }, [isAdmin]);
+    if (isAdmin === true) {
+      setHasCheckedAuth(true);
+      fetchMedia();
+    }
+  }
+}, [authLoading, user, isAdmin]);
 
   const fetchMedia = async () => {
     try {

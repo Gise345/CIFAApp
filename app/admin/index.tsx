@@ -60,7 +60,7 @@ interface ChartData {
 
 export default function AdminDashboardScreen() {
   const router = useRouter();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     activeUsers: 0,
@@ -85,16 +85,36 @@ export default function AdminDashboardScreen() {
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+
   
   // Redirect if not admin
   useEffect(() => {
-    if (user === null) {
-      router.replace('/login');
-    } else if (user && isAdmin === false) {
+  // Only check auth after loading is complete
+  if (!authLoading) {
+    console.log('Admin Dashboard - Auth Check:', {
+      user: user?.email,
+      isAdmin,
+      authLoading
+    });
+    
+    if (!user) {
+      Alert.alert('Authentication Required', 'Please log in to access this page');
+      router.replace('/(auth)/login');
+      return;
+    }
+    
+    if (isAdmin === false) {
       Alert.alert('Access Denied', 'You do not have permission to access this area.');
       router.back();
+      return;
     }
-  }, [user, isAdmin, router]);
+    
+    if (isAdmin === true) {
+      setHasCheckedAuth(true);
+    }
+  }
+}, [authLoading, user, isAdmin]);
 
   // Fetch dashboard statistics
   const fetchDashboardStats = async () => {
@@ -179,10 +199,10 @@ export default function AdminDashboardScreen() {
   };
 
   useEffect(() => {
-    if (isAdmin) {
-      fetchDashboardStats().finally(() => setLoading(false));
-    }
-  }, [isAdmin]);
+  if (isAdmin === true && hasCheckedAuth) {
+    fetchDashboardStats().finally(() => setLoading(false));
+  }
+}, [isAdmin, hasCheckedAuth]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -314,9 +334,29 @@ export default function AdminDashboardScreen() {
     }
   ];
 
-  if (!isAdmin) {
-    return null;
-  }
+  if (authLoading || (!hasCheckedAuth && isAdmin !== false)) {
+  return (
+    <LinearGradient
+      colors={['#0047AB', '#191970', '#041E42']}
+      style={styles.container}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <Header title="Admin Dashboard" showBack={true} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="white" />
+          <Text style={styles.loadingText}>
+            {authLoading ? 'Checking permissions...' : 'Loading dashboard...'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    </LinearGradient>
+  );
+}
+
+// Don't render if not admin
+if (!isAdmin || !hasCheckedAuth) {
+  return null;
+}
 
   if (loading) {
     return (

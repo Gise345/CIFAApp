@@ -1,4 +1,4 @@
-// app/admin/teams/index.tsx - Admin Teams Management
+// app/admin/teams/index.tsx - Fixed with proper admin check
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
@@ -20,7 +20,8 @@ import {
   orderBy, 
   getDocs,
   doc,
-  deleteDoc
+  deleteDoc,
+  where
 } from 'firebase/firestore';
 
 import Header from '../../../src/components/common/Header';
@@ -29,66 +30,41 @@ import Badge from '../../../src/components/common/Badge';
 import Button from '../../../src/components/common/Button';
 import { firestore } from '../../../src/services/firebase/config';
 import { useAuth } from '../../../src/hooks/useAuth';
-
-interface Team {
-  id: string;
-  name: string;
-  shortName: string;
-  division: string;
-  type: 'club' | 'national';
-  colorPrimary: string;
-  colorSecondary?: string;
-  logo?: string;
-  venue?: string;
-  foundedYear?: number;
-  description?: string;
-  website?: string;
-  leagueId?: string;
-}
+import { useTeams } from '../../../src/hooks/useTeams';
 
 export default function AdminTeamsScreen() {
-  const { user, isAdmin } = useAuth();
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user, isAdmin, loading: authLoading } = useAuth();
+  const { teams, fetchTeams, loading: teamsLoading } = useTeams();
   const [refreshing, setRefreshing] = useState(false);
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin) {
-      Alert.alert('Access Denied', 'You must be an admin to access this page');
-      router.back();
-      return;
-    }
-    
-    fetchTeams();
-  }, [isAdmin]);
-
-  const fetchTeams = async () => {
-    if (!firestore) {
-      Alert.alert('Error', 'Database connection not available');
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      const teamsQuery = query(
-        collection(firestore, 'teams'),
-        orderBy('name', 'asc')
-      );
+    // Only check auth after loading is complete
+    if (!authLoading) {
+      console.log('Admin Teams Screen - Auth Check:', {
+        user: user?.email,
+        isAdmin,
+        authLoading
+      });
       
-      const snapshot = await getDocs(teamsQuery);
-      const teamsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Team));
+      if (!user) {
+        Alert.alert('Authentication Required', 'Please log in to access this page');
+        router.replace('/(auth)/login');
+        return;
+      }
       
-      setTeams(teamsData);
-    } catch (error) {
-      console.error('Error fetching teams:', error);
-      Alert.alert('Error', 'Failed to load teams');
-    } finally {
-      setLoading(false);
+      if (isAdmin === false) {
+        Alert.alert('Access Denied', 'You must be an admin to access this page');
+        router.back();
+        return;
+      }
+      
+      if (isAdmin === true) {
+        setHasCheckedAuth(true);
+        fetchTeams();
+      }
     }
-  };
+  }, [authLoading, user, isAdmin]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -97,14 +73,14 @@ export default function AdminTeamsScreen() {
   };
 
   const handleCreateTeam = () => {
-    router.push('/admin/teams/create');
+    router.push('/admin/teams/create' as any);
   };
 
   const handleEditTeam = (teamId: string) => {
-    router.push(`/admin/teams/edit/${teamId}`);
+    router.push(`/admin/teams/${teamId}` as any);
   };
 
-  const handleDeleteTeam = (team: Team) => {
+  const handleDeleteTeam = (team: any) => {
     Alert.alert(
       'Delete Team',
       `Are you sure you want to delete "${team.name}"? This action cannot be undone.`,
@@ -122,7 +98,9 @@ export default function AdminTeamsScreen() {
             try {
               const teamDocRef = doc(firestore, 'teams', team.id);
               await deleteDoc(teamDocRef);
-              setTeams(prev => prev.filter(t => t.id !== team.id));
+              
+              // Refresh teams list
+              await fetchTeams();
               Alert.alert('Success', 'Team deleted successfully');
             } catch (error) {
               console.error('Error deleting team:', error);
@@ -134,18 +112,19 @@ export default function AdminTeamsScreen() {
     );
   };
 
-  const getTeamTypeBadge = (type: string) => {
+  const getTypeBadge = (type: string) => {
     switch (type) {
-      case 'national':
-        return <Badge text="National" variant="danger" />;
       case 'club':
-        return <Badge text="Club" variant="primary" />;
+        return <Badge text="CLUB" variant="primary" />;
+      case 'national':
+        return <Badge text="NATIONAL" variant="danger" />;
       default:
-        return <Badge text={type} variant="secondary" />;
+        return <Badge text={type.toUpperCase()} variant="secondary" />;
     }
   };
 
-  if (loading) {
+  // Show loading while auth is being checked
+  if (authLoading || (!hasCheckedAuth && isAdmin !== false)) {
     return (
       <LinearGradient
         colors={['#0047AB', '#191970', '#041E42']}
@@ -155,11 +134,18 @@ export default function AdminTeamsScreen() {
           <Header title="Team Management" showBack={true} />
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="white" />
-            <Text style={styles.loadingText}>Loading teams...</Text>
+            <Text style={styles.loadingText}>
+              {authLoading ? 'Checking permissions...' : 'Loading teams...'}
+            </Text>
           </View>
         </SafeAreaView>
       </LinearGradient>
     );
+  }
+
+  // Don't render if not admin
+  if (!isAdmin || !hasCheckedAuth) {
+    return null;
   }
 
   return (
@@ -198,14 +184,6 @@ export default function AdminTeamsScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.statsContainer}
           >
-            <Card style={[styles.statCard, { backgroundColor: '#fee2e2' }]}>
-              <Feather name="flag" size={20} color="#dc2626" />
-              <Text style={styles.statValue}>
-                {teams.filter(t => t.type === 'national').length}
-              </Text>
-              <Text style={styles.statLabel}>National</Text>
-            </Card>
-            
             <Card style={[styles.statCard, { backgroundColor: '#dbeafe' }]}>
               <Feather name="shield" size={20} color="#2563eb" />
               <Text style={styles.statValue}>
@@ -214,15 +192,28 @@ export default function AdminTeamsScreen() {
               <Text style={styles.statLabel}>Clubs</Text>
             </Card>
             
-            <Card style={[styles.statCard, { backgroundColor: '#fef3c7' }]}>
-              <Feather name="users" size={20} color="#f59e0b" />
+            <Card style={[styles.statCard, { backgroundColor: '#fee2e2' }]}>
+              <Feather name="flag" size={20} color="#dc2626" />
+              <Text style={styles.statValue}>
+                {teams.filter(t => t.type === 'national').length}
+              </Text>
+              <Text style={styles.statLabel}>National</Text>
+            </Card>
+            
+            <Card style={[styles.statCard, { backgroundColor: '#dcfce7' }]}>
+              <Feather name="users" size={20} color="#16a34a" />
               <Text style={styles.statValue}>{teams.length}</Text>
-              <Text style={styles.statLabel}>Total</Text>
+              <Text style={styles.statLabel}>Total Teams</Text>
             </Card>
           </ScrollView>
           
           {/* Teams List */}
-          {teams.length === 0 ? (
+          {teamsLoading ? (
+            <View style={styles.centerContainer}>
+              <ActivityIndicator size="large" color="#2563eb" />
+              <Text style={styles.centerText}>Loading teams...</Text>
+            </View>
+          ) : teams.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Feather name="shield" size={48} color="#9ca3af" />
               <Text style={styles.emptyText}>No teams found</Text>
@@ -236,31 +227,48 @@ export default function AdminTeamsScreen() {
             teams.map(team => (
               <Card key={team.id} style={styles.teamCard}>
                 <View style={styles.teamHeader}>
-                  <View style={styles.teamInfo}>
-                    <View style={styles.teamNameContainer}>
-                      <Text style={styles.teamName}>{team.name}</Text>
-                      <Text style={styles.teamShortName}>({team.shortName})</Text>
-                    </View>
-                    <Text style={styles.teamDivision}>{team.division}</Text>
-                    <View style={styles.badgeContainer}>
-                      {getTeamTypeBadge(team.type)}
-                    </View>
+                  <View style={styles.teamLogoContainer}>
+                    {team.logoUrl ? (
+                      <View style={[styles.teamLogo, { backgroundColor: team.colorPrimary || '#e5e7eb' }]}>
+                        <Text style={styles.logoText}>
+                          {team.shortName?.substring(0, 3).toUpperCase() || team.name.substring(0, 3).toUpperCase()}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={[styles.teamLogo, { backgroundColor: team.colorPrimary || '#e5e7eb' }]}>
+                        <Text style={styles.logoText}>
+                          {team.shortName?.substring(0, 3).toUpperCase() || team.name.substring(0, 3).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
                   </View>
-                  <View 
-                    style={[
-                      styles.teamColor, 
-                      { backgroundColor: team.colorPrimary || '#2563eb' }
-                    ]}
-                  />
+                  
+                  <View style={styles.teamInfo}>
+                    <Text style={styles.teamName}>{team.name}</Text>
+                    <Text style={styles.teamDivision}>{team.division || 'No division'}</Text>
+                  </View>
+                  
+                  {getTypeBadge(team.type)}
                 </View>
                 
                 {team.venue && (
-                  <Text style={styles.teamVenue}>🏟️ {team.venue}</Text>
+                  <Text style={styles.teamVenue}>📍 {team.venue}</Text>
                 )}
                 
-                {team.foundedYear && (
-                  <Text style={styles.teamFounded}>Founded: {team.foundedYear}</Text>
-                )}
+                <View style={styles.teamStats}>
+                  <View style={styles.teamStat}>
+                    <Text style={styles.teamStatLabel}>Founded</Text>
+                    <Text style={styles.teamStatValue}>{team.foundedYear || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.teamStat}>
+                    <Text style={styles.teamStatLabel}>Players</Text>
+                    <Text style={styles.teamStatValue}>0</Text>
+                  </View>
+                  <View style={styles.teamStat}>
+                    <Text style={styles.teamStatLabel}>Matches</Text>
+                    <Text style={styles.teamStatValue}>0</Text>
+                  </View>
+                </View>
                 
                 <View style={styles.teamActions}>
                   <TouchableOpacity 
@@ -269,6 +277,14 @@ export default function AdminTeamsScreen() {
                   >
                     <Feather name="edit-2" size={16} color="#2563eb" />
                     <Text style={styles.actionButtonText}>Edit</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => router.push(`/teams/${team.id}` as any)}
+                  >
+                    <Feather name="eye" size={16} color="#16a34a" />
+                    <Text style={[styles.actionButtonText, { color: '#16a34a' }]}>View</Text>
                   </TouchableOpacity>
                   
                   <TouchableOpacity 
@@ -351,6 +367,17 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginTop: 4,
   },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  centerText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6b7280',
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -374,51 +401,62 @@ const styles = StyleSheet.create({
   },
   teamHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
+  teamLogoContainer: {
+    marginRight: 12,
+  },
+  teamLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
   teamInfo: {
     flex: 1,
-  },
-  teamNameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
   },
   teamName: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#111827',
-  },
-  teamShortName: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginLeft: 8,
+    marginBottom: 2,
   },
   teamDivision: {
     fontSize: 14,
-    color: '#4b5563',
-    marginBottom: 8,
-  },
-  badgeContainer: {
-    flexDirection: 'row',
-  },
-  teamColor: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginLeft: 12,
+    color: '#6b7280',
   },
   teamVenue: {
     fontSize: 14,
     color: '#4b5563',
-    marginBottom: 4,
+    marginBottom: 12,
   },
-  teamFounded: {
+  teamStats: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  teamStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  teamStatLabel: {
     fontSize: 12,
     color: '#6b7280',
-    marginBottom: 12,
+    marginBottom: 4,
+  },
+  teamStatValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
   },
   teamActions: {
     flexDirection: 'row',

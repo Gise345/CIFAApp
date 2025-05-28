@@ -50,20 +50,40 @@ interface Match {
 }
 
 export default function AdminMatchesScreen() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+
 
   useEffect(() => {
-    if (!isAdmin) {
+  // Only check auth after loading is complete
+  if (!authLoading) {
+    console.log('Admin Matches Screen - Auth Check:', {
+      user: user?.email,
+      isAdmin,
+      authLoading
+    });
+    
+    if (!user) {
+      Alert.alert('Authentication Required', 'Please log in to access this page');
+      router.replace('/(auth)/login');
+      return;
+    }
+    
+    if (isAdmin === false) {
       Alert.alert('Access Denied', 'You must be an admin to access this page');
       router.back();
       return;
     }
     
-    fetchMatches();
-  }, [isAdmin]);
+    if (isAdmin === true) {
+      setHasCheckedAuth(true);
+      fetchMatches();
+    }
+  }
+}, [authLoading, user, isAdmin]);
 
   const fetchMatches = async () => {
     if (!firestore) {
@@ -164,22 +184,29 @@ export default function AdminMatchesScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <LinearGradient
-        colors={['#0047AB', '#191970', '#041E42']}
-        style={styles.container}
-      >
-        <SafeAreaView style={styles.safeArea}>
-          <Header title="Match Management" showBack={true} />
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="white" />
-            <Text style={styles.loadingText}>Loading matches...</Text>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
-    );
-  }
+  if (authLoading || (!hasCheckedAuth && isAdmin !== false)) {
+  return (
+    <LinearGradient
+      colors={['#0047AB', '#191970', '#041E42']}
+      style={styles.container}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <Header title="Match Management" showBack={true} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="white" />
+          <Text style={styles.loadingText}>
+            {authLoading ? 'Checking permissions...' : 'Loading matches...'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    </LinearGradient>
+  );
+}
+
+// Don't render if not admin
+if (!isAdmin || !hasCheckedAuth) {
+  return null;
+}
 
   return (
     <LinearGradient

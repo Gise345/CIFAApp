@@ -55,7 +55,7 @@ interface UserData {
 }
 
 export default function AdminUsersScreen() {
-  const { user: currentUser, isAdmin } = useAuth();
+  const { user: currentUser, isAdmin, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<UserData[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,16 +64,36 @@ export default function AdminUsersScreen() {
   const [filterRole, setFilterRole] = useState<'all' | 'admin' | 'user'>('all');
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+
 
   useEffect(() => {
-    if (!isAdmin) {
+  // Only check auth after loading is complete
+  if (!authLoading) {
+    console.log('Admin Users Screen - Auth Check:', {
+      user: currentUser?.email,
+      isAdmin,
+      authLoading
+    });
+    
+    if (!users) {
+      Alert.alert('Authentication Required', 'Please log in to access this page');
+      router.replace('/(auth)/login');
+      return;
+    }
+    
+    if (isAdmin === false) {
       Alert.alert('Access Denied', 'You must be an admin to access this page');
       router.back();
       return;
     }
     
-    fetchUsers();
-  }, [isAdmin]);
+    if (isAdmin === true) {
+      setHasCheckedAuth(true);
+      fetchUsers();
+    }
+  }
+}, [authLoading, users, isAdmin]);
 
   useEffect(() => {
     filterUsers();
@@ -365,7 +385,7 @@ export default function AdminUsersScreen() {
     );
   };
 
-  if (loading) {
+  if (authLoading || (!hasCheckedAuth && isAdmin !== false)) {
     return (
       <LinearGradient
         colors={['#0047AB', '#191970', '#041E42']}
@@ -381,6 +401,10 @@ export default function AdminUsersScreen() {
       </LinearGradient>
     );
   }
+  // Don't render if not admin
+if (!isAdmin || !hasCheckedAuth) {
+  return null;
+}
 
   return (
     <LinearGradient

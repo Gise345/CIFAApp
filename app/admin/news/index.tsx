@@ -32,6 +32,7 @@ import Button from '../../../src/components/common/Button';
 import { firestore } from '../../../src/services/firebase/config';
 import { useAuth } from '../../../src/hooks/useAuth';
 
+
 interface NewsArticle {
   id: string;
   title: string;
@@ -47,20 +48,69 @@ interface NewsArticle {
 }
 
 export default function AdminNewsScreen() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+  
+
+  const fetchNews = async () => {
+    if (!firestore) {
+      Alert.alert('Error', 'Database connection not available');
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const newsQuery = query(
+        collection(firestore, 'news'),
+        orderBy('date', 'desc')
+      );
+      
+      const snapshot = await getDocs(newsQuery);
+      const newsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as NewsArticle));
+      
+      setNews(newsData);
+    } catch (error) {
+      console.error('Error fetching news:', error);
+      Alert.alert('Error', 'Failed to load news articles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   useEffect(() => {
-    if (!isAdmin) {
+  // Only check auth after loading is complete
+  if (!authLoading) {
+    console.log('Admin News Screen - Auth Check:', {
+      user: user?.email,
+      isAdmin,
+      authLoading
+    });
+    
+    if (!user) {
+      Alert.alert('Authentication Required', 'Please log in to access this page');
+      router.replace('/(auth)/login');
+      return;
+    }
+    
+    if (isAdmin === false) {
       Alert.alert('Access Denied', 'You must be an admin to access this page');
       router.back();
       return;
     }
     
-    fetchArticles();
-  }, [isAdmin]);
+    if (isAdmin === true) {
+      setHasCheckedAuth(true);
+      fetchNews();
+    }
+  }
+}, [authLoading, user, isAdmin]);
 
   const fetchArticles = async () => {
     if (!firestore) {
@@ -144,7 +194,7 @@ export default function AdminNewsScreen() {
     }
   };
 
-  if (loading) {
+  if (authLoading || (!hasCheckedAuth && isAdmin !== false)) {
     return (
       <LinearGradient
         colors={['#0047AB', '#191970', '#041E42']}
@@ -160,6 +210,10 @@ export default function AdminNewsScreen() {
       </LinearGradient>
     );
   }
+
+  if (!isAdmin || !hasCheckedAuth) {
+  return null;
+}
 
   return (
     <LinearGradient
@@ -403,3 +457,7 @@ const styles = StyleSheet.create({
     height: 40,
   },
 });
+
+function setNews(newsData: NewsArticle[]) {
+  throw new Error('Function not implemented.');
+}

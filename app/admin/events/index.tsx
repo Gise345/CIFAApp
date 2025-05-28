@@ -46,20 +46,39 @@ interface Event {
 }
 
 export default function AdminEventsScreen() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin) {
+  // Only check auth after loading is complete
+  if (!authLoading) {
+    console.log('Admin Events Screen - Auth Check:', {
+      user: user?.email,
+      isAdmin,
+      authLoading
+    });
+    
+    if (!user) {
+      Alert.alert('Authentication Required', 'Please log in to access this page');
+      router.replace('/(auth)/login');
+      return;
+    }
+    
+    if (isAdmin === false) {
       Alert.alert('Access Denied', 'You must be an admin to access this page');
       router.back();
       return;
     }
     
-    fetchEvents();
-  }, [isAdmin]);
+    if (isAdmin === true) {
+      setHasCheckedAuth(true);
+      fetchEvents();
+    }
+  }
+}, [authLoading, user, isAdmin]);
 
   const fetchEvents = async () => {
     if (!firestore) {
