@@ -71,10 +71,6 @@ export const navigateToAdminNotifications = () => {
   safeNavigate('/admin/notifications');
 };
 
-export const navigateToFirebaseTest = () => {
-  safeNavigate('/admin/firebase-test');
-};
-
 // Auth routes
 export const navigateToLogin = () => {
   safeNavigate('/(auth)/login');

@@ -113,8 +113,6 @@ export default function AdminLayout() {
       {/* Notification Settings */}
       <Stack.Screen name="notification-settings/index" />
       
-      {/* Firebase Test */}
-      <Stack.Screen name="firebase-test" />
     </Stack>
   );
 }
