@@ -1,4 +1,4 @@
-// app/admin/_layout.tsx - Fixed Admin Layout for SDK 53
+// app/admin/_layout.tsx - Complete Admin Layout with All Routes
 import React, { useEffect, useState } from 'react';
 import { Stack } from 'expo-router/stack';
 import { useAuth } from '../../src/hooks/useAuth';
@@ -53,32 +53,68 @@ export default function AdminLayout() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      {/* Main Dashboard */}
       <Stack.Screen name="index" />
+      
+      {/* News Management */}
       <Stack.Screen name="news/index" />
       <Stack.Screen name="news/create" />
       <Stack.Screen name="news/edit/[id]" />
+      
+      {/* Matches Management */}
       <Stack.Screen name="matches/index" />
       <Stack.Screen name="matches/create" />
-      <Stack.Screen name="matches/edit/[id]" />
+      
+      {/* Teams Management */}
       <Stack.Screen name="teams/index" />
       <Stack.Screen name="teams/create" />
-      <Stack.Screen name="teams/edit/[id]" />
       <Stack.Screen name="teams/[id]" />
+      
+      {/* Players Management */}
       <Stack.Screen name="players/index" />
-      <Stack.Screen name="players/create" />
-      <Stack.Screen name="players/edit/[id]" />
+      
+      {/* Leagues Management */}
       <Stack.Screen name="leagues/index" />
-      <Stack.Screen name="leagues/create" />
-      <Stack.Screen name="leagues/edit/[id]" />
+      
+      {/* Events Management */}
+      <Stack.Screen name="events/index" />
+      
+      {/* Notifications Management */}
       <Stack.Screen name="notifications/index" />
       <Stack.Screen name="notifications/create" />
-      <Stack.Screen name="notifications/edit/[id]" />
+      
+      {/* Users Management */}
       <Stack.Screen name="users/index" />
-      <Stack.Screen name="users/[id]" />
+      
+      {/* Analytics */}
       <Stack.Screen name="analytics/index" />
+      
+      {/* Content Moderation */}
       <Stack.Screen name="moderation/index" />
+      
+      {/* Security Center */}
       <Stack.Screen name="security/index" />
+      
+      {/* Media Gallery */}
+      <Stack.Screen name="media/index" />
+      
+      {/* Email Management */}
+      <Stack.Screen name="emails/index" />
+      
+      {/* Roles Management */}
+      <Stack.Screen name="roles/index" />
+      
+      {/* Settings */}
       <Stack.Screen name="settings/index" />
+      
+      {/* Profile */}
+      <Stack.Screen name="profile/index" />
+      
+      {/* Notification Settings */}
+      <Stack.Screen name="notification-settings/index" />
+      
+      {/* Firebase Test */}
+      <Stack.Screen name="firebase-test" />
     </Stack>
   );
 }

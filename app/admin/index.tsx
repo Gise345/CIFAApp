@@ -1,4 +1,4 @@
-// CIFAMobileApp/app/admin/index.tsx
+// app/admin/index.tsx
 import React, { useEffect, useState } from 'react';
 import { 
   View, 
@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { 
   collection, 
   query, 
@@ -78,7 +78,9 @@ export default function AdminDashboardScreen() {
   const [chartData, setChartData] = useState<ChartData>({
     labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     datasets: [{
-      data: [0, 0, 0, 0, 0, 0, 0]
+      data: [20, 45, 28, 80, 99, 43, 50],
+      color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
+      strokeWidth: 2
     }]
   });
   const [loading, setLoading] = useState(true);
@@ -157,25 +159,6 @@ export default function AdminDashboardScreen() {
         ? Math.round((activeUsersSnapshot.size / usersCount.data().count) * 100)
         : 0;
 
-      // Generate mock chart data (in production, this would come from analytics)
-      const mockChartData = {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        datasets: [{
-          data: [
-            Math.floor(Math.random() * 100) + 50,
-            Math.floor(Math.random() * 100) + 50,
-            Math.floor(Math.random() * 100) + 50,
-            Math.floor(Math.random() * 100) + 50,
-            Math.floor(Math.random() * 100) + 50,
-            Math.floor(Math.random() * 100) + 100,
-            Math.floor(Math.random() * 100) + 100
-          ],
-          color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
-          strokeWidth: 2
-        }]
-      };
-
-      setChartData(mockChartData);
       setStats({
         totalUsers: usersCount.data().count,
         activeUsers: activeUsersSnapshot.size,
@@ -207,16 +190,41 @@ export default function AdminDashboardScreen() {
     setRefreshing(false);
   };
 
+  // Navigation functions - existing routes
+  const navigateToNews = () => router.push('/admin/news/' as any);
+  const navigateToMatches = () => router.push('/admin/matches/' as any);
+  const navigateToTeams = () => router.push('/admin/teams/' as any);
+  const navigateToPlayers = () => router.push('/admin/players/' as any);
+  const navigateToUsers = () => router.push('/admin/users/' as any);
+  const navigateToNotifications = () => router.push('/admin/notifications/' as any);
+  const navigateToLeagues = () => router.push('/admin/leagues/' as any);
+
+  // Navigation functions - new routes to be created
+  const navigateToEvents = () => router.push('/admin/events/' as any);
+  const navigateToAnalytics = () => router.push('/admin/analytics/' as any);
+  const navigateToModeration = () => router.push('/admin/moderation/' as any);
+  const navigateToSecurity = () => router.push('/admin/security/' as any);
+  const navigateToSettings = () => router.push('/admin/settings/' as any);
+  const navigateToMedia = () => router.push('/admin/media/' as any);
+  const navigateToEmails = () => router.push('/admin/emails/' as any);
+  const navigateToRoles = () => router.push('/admin/roles/' as any);
+
+  // Quick actions
+  const navigateToCreateNews = () => router.push('/admin/news/create' as any);
+  const navigateToCreateMatch = () => router.push('/admin/matches/create' as any);
+  const navigateToCreateNotification = () => router.push('/admin/notifications/create' as any);
+
   const adminSections = [
     {
       title: 'Content Management',
       icon: 'file-text',
       color: '#2563eb',
       description: 'Upload, edit, and schedule content',
+      onPress: navigateToNews,
       items: [
-        { label: 'News Articles', route: '/admin/news', icon: 'file-text' },
-        { label: 'Media Gallery', route: '/admin/media', icon: 'image' },
-        { label: 'Videos', route: '/admin/videos', icon: 'video' }
+        { label: 'News Articles', route: navigateToNews, icon: 'file-text' },
+        { label: 'Media Gallery', route: navigateToMedia, icon: 'image' },
+        { label: 'Videos', route: () => Alert.alert('Coming Soon', 'Video management will be available soon'), icon: 'video' }
       ]
     },
     {
@@ -224,11 +232,12 @@ export default function AdminDashboardScreen() {
       icon: 'bar-chart-2',
       color: '#16a34a',
       description: 'Update scores and statistics',
+      onPress: navigateToMatches,
       items: [
-        { label: 'Match Results', route: '/admin/matches', icon: 'calendar' },
-        { label: 'Player Stats', route: '/admin/players', icon: 'user' },
-        { label: 'Team Standings', route: '/admin/teams', icon: 'users' },
-        { label: 'Leagues', route: '/admin/leagues', icon: 'award' }
+        { label: 'Match Results', route: navigateToMatches, icon: 'calendar' },
+        { label: 'Player Stats', route: navigateToPlayers, icon: 'user' },
+        { label: 'Team Standings', route: navigateToTeams, icon: 'users' },
+        { label: 'Leagues', route: navigateToLeagues, icon: 'award' }
       ]
     },
     {
@@ -236,10 +245,11 @@ export default function AdminDashboardScreen() {
       icon: 'calendar',
       color: '#f59e0b',
       description: 'Manage schedules and fixtures',
+      onPress: navigateToEvents,
       items: [
-        { label: 'Match Schedule', route: '/admin/schedule', icon: 'calendar' },
-        { label: 'Fixtures', route: '/admin/fixtures', icon: 'list' },
-        { label: 'Events', route: '/admin/events', icon: 'flag' }
+        { label: 'Match Schedule', route: navigateToMatches, icon: 'calendar' },
+        { label: 'Fixtures', route: navigateToMatches, icon: 'list' },
+        { label: 'Events', route: navigateToEvents, icon: 'flag' }
       ]
     },
     {
@@ -247,10 +257,11 @@ export default function AdminDashboardScreen() {
       icon: 'users',
       color: '#8b5cf6',
       description: 'Manage accounts and permissions',
+      onPress: navigateToUsers,
       items: [
-        { label: 'All Users', route: '/admin/users', icon: 'users' },
-        { label: 'Roles & Permissions', route: '/admin/roles', icon: 'shield' },
-        { label: 'User Activity', route: '/admin/activity', icon: 'activity' }
+        { label: 'All Users', route: navigateToUsers, icon: 'users' },
+        { label: 'Roles & Permissions', route: navigateToRoles, icon: 'shield' },
+        { label: 'User Activity', route: navigateToAnalytics, icon: 'activity' }
       ]
     },
     {
@@ -258,10 +269,11 @@ export default function AdminDashboardScreen() {
       icon: 'bell',
       color: '#ef4444',
       description: 'Send notifications and updates',
+      onPress: navigateToNotifications,
       items: [
-        { label: 'Push Notifications', route: '/admin/notifications', icon: 'bell' },
-        { label: 'Email Campaigns', route: '/admin/emails', icon: 'mail' },
-        { label: 'Announcements', route: '/admin/announcements', icon: 'megaphone' }
+        { label: 'Push Notifications', route: navigateToNotifications, icon: 'bell' },
+        { label: 'Email Campaigns', route: navigateToEmails, icon: 'mail' },
+        { label: 'Announcements', route: navigateToNotifications, icon: 'speaker' }
       ]
     },
     {
@@ -269,10 +281,11 @@ export default function AdminDashboardScreen() {
       icon: 'trending-up',
       color: '#06b6d4',
       description: 'View engagement and performance',
+      onPress: navigateToAnalytics,
       items: [
-        { label: 'User Analytics', route: '/admin/analytics/users', icon: 'pie-chart' },
-        { label: 'Content Performance', route: '/admin/analytics/content', icon: 'bar-chart' },
-        { label: 'App Usage', route: '/admin/analytics/usage', icon: 'activity' }
+        { label: 'User Analytics', route: navigateToAnalytics, icon: 'pie-chart' },
+        { label: 'Content Performance', route: navigateToAnalytics, icon: 'bar-chart' },
+        { label: 'App Usage', route: navigateToAnalytics, icon: 'activity' }
       ]
     },
     {
@@ -280,10 +293,11 @@ export default function AdminDashboardScreen() {
       icon: 'shield',
       color: '#10b981',
       description: 'Review and moderate content',
+      onPress: navigateToModeration,
       items: [
-        { label: 'Comments', route: '/admin/moderation/comments', icon: 'message-square' },
-        { label: 'Reports', route: '/admin/moderation/reports', icon: 'alert-triangle' },
-        { label: 'Chat Messages', route: '/admin/moderation/chat', icon: 'message-circle' }
+        { label: 'Comments', route: navigateToModeration, icon: 'message-square' },
+        { label: 'Reports', route: navigateToModeration, icon: 'alert-triangle' },
+        { label: 'Chat Messages', route: navigateToModeration, icon: 'message-circle' }
       ]
     },
     {
@@ -291,10 +305,11 @@ export default function AdminDashboardScreen() {
       icon: 'lock',
       color: '#6366f1',
       description: 'Manage security settings',
+      onPress: navigateToSecurity,
       items: [
-        { label: 'Access Control', route: '/admin/security/access', icon: 'key' },
-        { label: 'Audit Logs', route: '/admin/security/logs', icon: 'file-text' },
-        { label: 'Security Settings', route: '/admin/security/settings', icon: 'settings' }
+        { label: 'Access Control', route: navigateToSecurity, icon: 'key' },
+        { label: 'Audit Logs', route: navigateToSecurity, icon: 'file-text' },
+        { label: 'Security Settings', route: navigateToSettings, icon: 'settings' }
       ]
     }
   ];
@@ -429,7 +444,7 @@ export default function AdminDashboardScreen() {
             <Card key={index} style={styles.sectionCard}>
               <TouchableOpacity 
                 style={styles.sectionHeader}
-                onPress={() => router.push(section.items[0].route)}
+                onPress={section.onPress}
               >
                 <View style={[styles.sectionIcon, { backgroundColor: `${section.color}15` }]}>
                   <Feather name={section.icon as any} size={24} color={section.color} />
@@ -446,7 +461,7 @@ export default function AdminDashboardScreen() {
                   <TouchableOpacity
                     key={itemIndex}
                     style={styles.sectionItem}
-                    onPress={() => router.push(item.route)}
+                    onPress={item.route}
                   >
                     <Feather name={item.icon as any} size={16} color="#6b7280" />
                     <Text style={styles.sectionItemText}>{item.label}</Text>
@@ -461,7 +476,7 @@ export default function AdminDashboardScreen() {
           <View style={styles.quickActions}>
             <TouchableOpacity 
               style={[styles.quickActionButton, { backgroundColor: '#dbeafe' }]}
-              onPress={() => router.push('/admin/news/create')}
+              onPress={navigateToCreateNews}
             >
               <Feather name="plus-circle" size={24} color="#2563eb" />
               <Text style={[styles.quickActionText, { color: '#2563eb' }]}>New Article</Text>
@@ -469,7 +484,7 @@ export default function AdminDashboardScreen() {
             
             <TouchableOpacity 
               style={[styles.quickActionButton, { backgroundColor: '#dcfce7' }]}
-              onPress={() => router.push('/admin/matches/create')}
+              onPress={navigateToCreateMatch}
             >
               <Feather name="plus-circle" size={24} color="#16a34a" />
               <Text style={[styles.quickActionText, { color: '#16a34a' }]}>Add Match</Text>
@@ -477,7 +492,7 @@ export default function AdminDashboardScreen() {
             
             <TouchableOpacity 
               style={[styles.quickActionButton, { backgroundColor: '#fee2e2' }]}
-              onPress={() => router.push('/admin/notifications/create')}
+              onPress={navigateToCreateNotification}
             >
               <Feather name="bell" size={24} color="#ef4444" />
               <Text style={[styles.quickActionText, { color: '#ef4444' }]}>Send Alert</Text>

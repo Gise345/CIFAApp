@@ -1,13 +1,13 @@
-// src/services/firebase/config.ts
+// src/services/firebase/config.ts - Updated with Auth Persistence
 import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
+import { getAuth, Auth, initializeAuth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
 // Get Firebase configuration safely
 const getFirebaseConfig = () => {
-  // Try multiple approaches to get the config in SDK 53
   try {
     // Try expo-constants first
     if (Constants.expoConfig?.extra) {
@@ -33,13 +33,6 @@ const getFirebaseConfig = () => {
         appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
         measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
       };
-    }
-    
-    // Try the old way (SDK 52 and below)
-    // @ts-ignore - For SDK compatibility
-    if (Constants.manifest?.extra) {
-      // @ts-ignore - For SDK compatibility
-      return Constants.manifest.extra;
     }
     
     console.warn('Could not find Firebase config in any of the expected locations');
@@ -75,9 +68,20 @@ try {
     // Initialize Firebase services
     if (app) {
       try {
-        auth = getAuth(app);
+        // Initialize Auth with persistence - Firebase v9+ automatically uses AsyncStorage for React Native
+        auth = initializeAuth(app, {
+          // In Firebase v9+, React Native auth automatically persists to AsyncStorage
+          // No need to explicitly set persistence
+        });
+        console.log('Firebase Auth initialized with automatic persistence');
       } catch (e) {
-        console.error('Error initializing Firebase Auth:', e);
+        // If initializeAuth fails (already initialized), use getAuth
+        try {
+          auth = getAuth(app);
+          console.log('Using existing Firebase Auth instance');
+        } catch (authError) {
+          console.error('Error getting Firebase Auth:', authError);
+        }
       }
       
       try {

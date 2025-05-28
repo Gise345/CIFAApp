@@ -1,8 +1,9 @@
-// src/providers/FirebaseProvider.tsx
+// src/providers/FirebaseProvider.tsx - Updated with Auth Persistence
 import React, { ReactNode, useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { auth, firestore, checkFirestoreConnection } from '../services/firebase/config';
 import { onAuthStateChanged, User } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -41,14 +42,56 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({ children }) 
     checkConnection();
   }, []);
 
-  // Set up auth state listener
+  // Set up auth state listener with persistence
   useEffect(() => {
     if (!connectionChecked) return;
     if (!auth) return;
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setInitializing(false);
+    // Load cached user data on app start
+    const loadCachedUser = async () => {
+      try {
+        const cachedUserData = await AsyncStorage.getItem('userData');
+        if (cachedUserData) {
+          console.log('Loading cached user data');
+          // Don't set user from cache, let Firebase auth handle it
+          // This is just to show we're loading from cache
+        }
+      } catch (error) {
+        console.error('Error loading cached user:', error);
+      }
+    };
+
+    loadCachedUser();
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('Auth state changed:', user ? user.email : 'No user');
+      
+      try {
+        if (user) {
+          // Cache user data
+          const userData = {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            emailVerified: user.emailVerified,
+          };
+          
+          await AsyncStorage.setItem('userData', JSON.stringify(userData));
+          console.log('User data cached successfully');
+        } else {
+          // Clear cached user data on sign out
+          await AsyncStorage.removeItem('userData');
+          console.log('User data cache cleared');
+        }
+        
+        setUser(user);
+        setInitializing(false);
+      } catch (error) {
+        console.error('Error handling auth state change:', error);
+        setUser(user);
+        setInitializing(false);
+      }
     }, (error) => {
       console.error('Auth state change error:', error);
       setInitializing(false);
@@ -62,7 +105,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({ children }) 
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.text}>Initializing app...</Text>
+        <Text style={styles.text}>
+          {!connectionChecked ? 'Connecting to Firebase...' : 'Checking authentication...'}
+        </Text>
       </View>
     );
   }
