@@ -1,8 +1,8 @@
-// CIFAMobileApp/app/admin/news/edit/[id].tsx
+// app/admin/news/edit/[id].tsx - Fixed Navigation and Parameter Handling
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, ActivityIndicator, Text, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 
@@ -15,27 +15,47 @@ import { NewsArticle } from '../../../../src/services/firebase/news';
 
 export default function EditNewsScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
-  const newsId = Array.isArray(id) ? id[0] : id;
+  const params = useGlobalSearchParams();
   
-  const { user, isAdmin } = useAuth();
+  // Extract article ID from params - handle both string and array cases
+  const getArticleId = () => {
+    const id = params.id;
+    if (Array.isArray(id)) {
+      return id[0] || null;
+    }
+    return id || null;
+  };
+  
+  const newsId = getArticleId();
+  
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const { fetchNewsById } = useNews();
   
   const [article, setArticle] = useState<NewsArticle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 
   // Check if user is authorized
   useEffect(() => {
-    if (user === null) {
-      // Not logged in, redirect to login
-      router.replace('/login');
-    } else if (isAdmin === false) {
-      // Logged in but not admin
-      Alert.alert('Access Denied', 'You do not have permission to access this area.');
-      router.back();
+    if (!authLoading) {
+      if (!user) {
+        Alert.alert('Authentication Required', 'Please log in to access this page');
+        router.replace('/(auth)/login' as any);
+        return;
+      }
+      
+      if (isAdmin === false) {
+        Alert.alert('Access Denied', 'You must be an admin to access this page');
+        router.back();
+        return;
+      }
+      
+      if (isAdmin === true) {
+        setHasCheckedAuth(true);
+      }
     }
-  }, [user, isAdmin, router]);
+  }, [authLoading, user, isAdmin]);
 
   // Load article
   useEffect(() => {
@@ -48,24 +68,78 @@ export default function EditNewsScreen() {
       
       try {
         setLoading(true);
+        console.log('EditNewsScreen: Loading article with ID:', newsId);
         const fetchedArticle = await fetchNewsById(newsId);
-        setArticle(fetchedArticle);
-        setLoading(false);
+        
+        if (fetchedArticle) {
+          console.log('EditNewsScreen: Article loaded:', fetchedArticle.title);
+          console.log('EditNewsScreen: Article images:', {
+            thumbnail: fetchedArticle.thumbnailUrl,
+            media: fetchedArticle.mediaUrls
+          });
+          setArticle(fetchedArticle);
+        } else {
+          setError('Article not found');
+        }
       } catch (err) {
         console.error('Error loading article:', err);
         setError('Failed to load article');
+      } finally {
         setLoading(false);
       }
     };
     
-    if (isAdmin && newsId) {
+    if (hasCheckedAuth && newsId) {
       loadArticle();
     }
-  }, [isAdmin, newsId, fetchNewsById]);
+  }, [hasCheckedAuth, newsId, fetchNewsById]);
 
   const handleSaveSuccess = () => {
-    router.replace('./admin/news');
+    console.log('EditNewsScreen: Article updated successfully');
+    
+    try {
+      // Navigate back to admin news list with proper route
+      router.replace('/admin/news' as any);
+    } catch (error) {
+      console.error('EditNewsScreen: Navigation error after save:', error);
+      try {
+        // Alternative navigation
+        router.push('/admin/news' as any);
+      } catch (error2) {
+        console.error('EditNewsScreen: Fallback navigation failed:', error2);
+        Alert.alert(
+          'Success', 
+          'Article updated successfully! Please navigate back to the news list manually.',
+          [{ text: 'OK' }]
+        );
+      }
+    }
   };
+
+  // Auth loading state
+  if (authLoading || (!hasCheckedAuth && isAdmin !== false)) {
+    return (
+      <LinearGradient
+        colors={['#0047AB', '#191970', '#041E42']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.container}
+      >
+        <SafeAreaView style={styles.safeArea}>
+          <Header title="Edit Article" showBack={true} />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="white" />
+            <Text style={styles.loadingText}>Checking permissions...</Text>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
+
+  // Auth failed
+  if (!isAdmin || !hasCheckedAuth) {
+    return null;
+  }
 
   // Loading state
   if (loading) {
@@ -78,11 +152,9 @@ export default function EditNewsScreen() {
       >
         <SafeAreaView style={styles.safeArea}>
           <Header title="Edit Article" showBack={true} />
-          <View style={styles.content}>
-            <View style={styles.centerContainer}>
-              <ActivityIndicator size="large" color="#2563eb" />
-              <Text style={styles.loadingText}>Loading article...</Text>
-            </View>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="white" />
+            <Text style={styles.loadingText}>Loading article...</Text>
           </View>
         </SafeAreaView>
       </LinearGradient>
@@ -100,18 +172,22 @@ export default function EditNewsScreen() {
       >
         <SafeAreaView style={styles.safeArea}>
           <Header title="Edit Article" showBack={true} />
-          <View style={styles.content}>
-            <View style={styles.centerContainer}>
-              <Feather name="alert-circle" size={40} color="#ef4444" />
-              <Text style={styles.errorText}>
-                {error || 'Article not found'}
-              </Text>
-              <Button 
-                title="Go Back" 
-                onPress={() => router.back()}
-                style={styles.backButton}
-              />
-            </View>
+          <View style={styles.errorContainer}>
+            <Feather name="alert-circle" size={40} color="#ef4444" />
+            <Text style={styles.errorText}>
+              {error || 'Article not found'}
+            </Text>
+            <Button 
+              title="Go Back" 
+              onPress={() => {
+                try {
+                  router.back();
+                } catch (error) {
+                  router.replace('/admin/news' as any);
+                }
+              }}
+              style={styles.backButton}
+            />
           </View>
         </SafeAreaView>
       </LinearGradient>
@@ -152,20 +228,31 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     overflow: 'hidden',
   },
-  centerContainer: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   loadingText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: 'white',
     marginTop: 12,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
   },
   errorText: {
     fontSize: 16,
-    color: '#ef4444',
+    color: 'white',
     textAlign: 'center',
     marginTop: 12,
     marginBottom: 20,

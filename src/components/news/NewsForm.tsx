@@ -10,6 +10,7 @@ import {
   ScrollView,
   Switch,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Picker } from '@react-native-picker/picker';
@@ -45,6 +46,31 @@ const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) =
   const [tagInput, setTagInput] = useState('');
   const [mediaImages, setMediaImages] = useState<any[]>([]);
   const [thumbnailImage, setThumbnailImage] = useState<any>(null);
+  
+  // Keep track of existing images to display them
+  const [existingThumbnailUrl, setExistingThumbnailUrl] = useState(existingArticle?.thumbnailUrl || '');
+  const [existingMediaUrls, setExistingMediaUrls] = useState<string[]>(existingArticle?.mediaUrls || []);
+  
+  // Update state when existingArticle changes
+  useEffect(() => {
+    if (existingArticle) {
+      console.log('NewsForm: Loading existing article data:', {
+        title: existingArticle.title,
+        thumbnail: existingArticle.thumbnailUrl,
+        mediaCount: existingArticle.mediaUrls?.length || 0
+      });
+      
+      setTitle(existingArticle.title || '');
+      setBody(existingArticle.body || '');
+      setSummary(existingArticle.summary || '');
+      setCategory(existingArticle.category || 'GENERAL');
+      setTags(existingArticle.tags || []);
+      setFeatured(existingArticle.featured || false);
+      setMediaUrls(existingArticle.mediaUrls || []);
+      setExistingThumbnailUrl(existingArticle.thumbnailUrl || '');
+      setExistingMediaUrls(existingArticle.mediaUrls || []);
+    }
+  }, [existingArticle]);
 
   // Categories for news articles
   const categories = [
@@ -236,6 +262,8 @@ const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) =
 
       if (!result.canceled) {
         setThumbnailImage(result.assets[0]);
+        // Clear existing thumbnail when new one is selected
+        setExistingThumbnailUrl('');
       }
     } catch (error) {
       console.error('Error picking thumbnail:', error);
@@ -258,6 +286,27 @@ const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) =
       console.error('Error picking images:', error);
       Alert.alert('Error', 'Failed to pick images.');
     }
+  };
+
+  // Remove existing media URL
+  const removeExistingMediaUrl = (index: number) => {
+    const updatedUrls = [...existingMediaUrls];
+    updatedUrls.splice(index, 1);
+    setExistingMediaUrls(updatedUrls);
+    setMediaUrls(updatedUrls);
+  };
+
+  // Remove new media image
+  const removeNewMediaImage = (index: number) => {
+    const updatedImages = [...mediaImages];
+    updatedImages.splice(index, 1);
+    setMediaImages(updatedImages);
+  };
+
+  // Clear existing thumbnail
+  const clearExistingThumbnail = () => {
+    setExistingThumbnailUrl('');
+    setThumbnailImage(null);
   };
 
   return (
@@ -410,6 +459,45 @@ const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) =
           {/* Thumbnail */}
           <View style={styles.mediaSection}>
             <Text style={styles.mediaLabel}>Thumbnail Image</Text>
+            
+            {/* Show existing thumbnail if available */}
+            {existingThumbnailUrl && !thumbnailImage && (
+              <View style={styles.existingImageContainer}>
+                <Image 
+                  source={{ uri: existingThumbnailUrl }} 
+                  style={styles.existingThumbnailPreview}
+                  resizeMode="cover"
+                />
+                <TouchableOpacity 
+                  style={styles.removeExistingImageButton}
+                  onPress={clearExistingThumbnail}
+                  disabled={loading}
+                >
+                  <Feather name="x" size={16} color="white" />
+                </TouchableOpacity>
+                <Text style={styles.existingImageLabel}>Current Thumbnail</Text>
+              </View>
+            )}
+            
+            {/* Show new thumbnail if selected */}
+            {thumbnailImage && (
+              <View style={styles.existingImageContainer}>
+                <Image 
+                  source={{ uri: thumbnailImage.uri }} 
+                  style={styles.existingThumbnailPreview}
+                  resizeMode="cover"
+                />
+                <TouchableOpacity 
+                  style={styles.removeExistingImageButton}
+                  onPress={() => setThumbnailImage(null)}
+                  disabled={loading}
+                >
+                  <Feather name="x" size={16} color="white" />
+                </TouchableOpacity>
+                <Text style={styles.existingImageLabel}>New Thumbnail</Text>
+              </View>
+            )}
+            
             <TouchableOpacity 
               style={styles.mediaPickerButton}
               onPress={pickThumbnailImage}
@@ -417,28 +505,81 @@ const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) =
             >
               <Feather name="image" size={16} color="white" />
               <Text style={styles.mediaPickerText}>
-                {thumbnailImage ? 'Change Thumbnail' : 'Select Thumbnail'}
+                {existingThumbnailUrl || thumbnailImage ? 'Change Thumbnail' : 'Select Thumbnail'}
               </Text>
             </TouchableOpacity>
-            {thumbnailImage && (
-              <Text style={styles.mediaInfo}>✓ Thumbnail selected</Text>
-            )}
           </View>
           
           {/* Additional Images */}
           <View style={styles.mediaSection}>
             <Text style={styles.mediaLabel}>Additional Images</Text>
+            
+            {/* Show existing media images */}
+            {existingMediaUrls.length > 0 && (
+              <View>
+                <Text style={styles.existingMediaTitle}>Current Images ({existingMediaUrls.length})</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.existingMediaScrollView}
+                >
+                  {existingMediaUrls.map((url, index) => (
+                    <View key={`existing-${index}`} style={styles.existingMediaItem}>
+                      <Image 
+                        source={{ uri: url }} 
+                        style={styles.existingMediaImage}
+                        resizeMode="cover"
+                      />
+                      <TouchableOpacity 
+                        style={styles.removeExistingImageButton}
+                        onPress={() => removeExistingMediaUrl(index)}
+                        disabled={loading}
+                      >
+                        <Feather name="x" size={12} color="white" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+            
+            {/* Show new media images */}
+            {mediaImages.length > 0 && (
+              <View>
+                <Text style={styles.existingMediaTitle}>New Images ({mediaImages.length})</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.existingMediaScrollView}
+                >
+                  {mediaImages.map((image, index) => (
+                    <View key={`new-${index}`} style={styles.existingMediaItem}>
+                      <Image 
+                        source={{ uri: image.uri }} 
+                        style={styles.existingMediaImage}
+                        resizeMode="cover"
+                      />
+                      <TouchableOpacity 
+                        style={styles.removeExistingImageButton}
+                        onPress={() => removeNewMediaImage(index)}
+                        disabled={loading}
+                      >
+                        <Feather name="x" size={12} color="white" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+            
             <TouchableOpacity 
               style={styles.mediaPickerButton}
               onPress={pickMediaImages}
               disabled={loading}
             >
               <Feather name="camera" size={16} color="white" />
-              <Text style={styles.mediaPickerText}>Add Images</Text>
+              <Text style={styles.mediaPickerText}>Add More Images</Text>
             </TouchableOpacity>
-            {mediaImages.length > 0 && (
-              <Text style={styles.mediaInfo}>✓ {mediaImages.length} image(s) selected</Text>
-            )}
           </View>
         </View>
         
@@ -624,6 +765,58 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     borderColor: '#d1d5db',
+  },
+  existingImageContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  existingThumbnailPreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+  },
+  existingImageLabel: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    color: 'white',
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  removeExistingImageButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  existingMediaTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  existingMediaScrollView: {
+    marginBottom: 12,
+  },
+  existingMediaItem: {
+    width: 100,
+    height: 80,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginRight: 8,
+    position: 'relative',
+  },
+  existingMediaImage: {
+    width: '100%',
+    height: '100%',
   },
 });
 
