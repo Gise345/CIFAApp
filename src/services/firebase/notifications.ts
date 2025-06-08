@@ -12,8 +12,8 @@ import {
     limit,
     Timestamp 
   } from 'firebase/firestore';
-  import { messaging } from './config';
   import { firestore } from './config';
+  import type { Firestore } from 'firebase/firestore';
   import * as Device from 'expo-device';
   import * as Notifications from 'expo-notifications';
   import { Platform } from 'react-native';
@@ -83,8 +83,10 @@ import {
   export const saveUserPushToken = async (token: string, userId?: string): Promise<void> => {
     try {
       if (!token) return;
-      
-      const tokensCollection = collection(firestore, 'pushTokens');
+      if (!firestore) {
+        throw new Error('Firestore is not initialized');
+      }
+      const tokensCollection = collection(firestore as Firestore, 'pushTokens');
       const q = query(tokensCollection, where('token', '==', token));
       const querySnapshot = await getDocs(q);
       
@@ -99,7 +101,7 @@ import {
         });
       } else {
         // Token exists, update lastActive and userId if provided
-        const docRef = doc(firestore, 'pushTokens', querySnapshot.docs[0].id);
+        const docRef = doc(firestore as Firestore, 'pushTokens', querySnapshot.docs[0].id);
         const updateData: any = { lastActive: Timestamp.now() };
         
         if (userId) {
@@ -126,6 +128,9 @@ import {
     }
   ): Promise<void> => {
     try {
+      if (!firestore) {
+        throw new Error('Firestore is not initialized');
+      }
       const userRef = doc(firestore, 'users', userId);
       await updateDoc(userRef, {
         notificationSettings: preferences,
@@ -143,6 +148,9 @@ import {
   export const getUserNotifications = async (userId: string, limit_num: number = 20): Promise<NotificationItem[]> => {
     try {
       // Get user data to check team preferences
+      if (!firestore) {
+        throw new Error('Firestore is not initialized');
+      }
       const userDoc = await getDoc(doc(firestore, 'users', userId));
       if (!userDoc.exists()) {
         throw new Error('User not found');
@@ -226,6 +234,9 @@ import {
    */
   export const createNotification = async (notification: Omit<NotificationItem, 'id' | 'status' | 'sentAt'>): Promise<string> => {
     try {
+      if (!firestore) {
+        throw new Error('Firestore is not initialized');
+      }
       const notificationData = {
         ...notification,
         status: notification.scheduledFor ? 'scheduled' : 'draft',
@@ -245,7 +256,7 @@ import {
    */
   export const updateNotification = async (notificationId: string, notificationData: Partial<NotificationItem>): Promise<void> => {
     try {
-      const notificationRef = doc(firestore, 'notifications', notificationId);
+      const notificationRef = doc(firestore!, 'notifications', notificationId);
       
       // Check if notification can be updated
       const notificationDoc = await getDoc(notificationRef);
@@ -273,7 +284,10 @@ import {
    */
   export const sendNotification = async (notificationId: string): Promise<void> => {
     try {
-      const notificationRef = doc(firestore, 'notifications', notificationId);
+      if (!firestore) {
+        throw new Error('Firestore is not initialized');
+      }
+      const notificationRef = doc(firestore!, 'notifications', notificationId);
       const notificationDoc = await getDoc(notificationRef);
       
       if (!notificationDoc.exists()) {
@@ -306,7 +320,7 @@ import {
    */
   export const deleteNotification = async (notificationId: string): Promise<void> => {
     try {
-      const notificationRef = doc(firestore, 'notifications', notificationId);
+      const notificationRef = doc(firestore!, 'notifications', notificationId);
       const notificationDoc = await getDoc(notificationRef);
       
       if (!notificationDoc.exists()) {

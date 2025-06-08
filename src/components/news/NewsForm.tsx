@@ -1,130 +1,89 @@
-// CIFAMobileApp/src/components/news/NewsForm.tsx
+// src/components/news/NewsForm.tsx - Improved NewsForm Component
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
-  ScrollView, 
-  Image, 
-  Platform,
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
   Alert,
-  ActivityIndicator
+  TouchableOpacity,
+  ScrollView,
+  Switch,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { Picker } from '@react-native-picker/picker';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { Switch } from 'react-native-gesture-handler';
-
-import Button from '../common/Button';
-import { NewsArticle } from '../../services/firebase/news';
-import { createNewsArticle, updateNewsArticle } from '../../services/firebase/news';
-import { useAuth } from '../../hooks/useAuth';
+import { Picker } from '@react-native-picker/picker';
+import * as ImagePicker from 'expo-image-picker';
+import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
 
+import { useAuth } from '../../hooks/useAuth';
+import { createNewsArticle, updateNewsArticle } from '../../services/firebase/news';
+import Button from '../common/Button';
+
 interface NewsFormProps {
-  existingArticle?: NewsArticle;
+  existingArticle?: any;
   onSaveSuccess?: () => void;
 }
 
 const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) => {
-  const router = useRouter();
   const { user } = useAuth();
   
+  // Form state
   const [title, setTitle] = useState(existingArticle?.title || '');
   const [body, setBody] = useState(existingArticle?.body || '');
   const [summary, setSummary] = useState(existingArticle?.summary || '');
   const [category, setCategory] = useState(existingArticle?.category || 'GENERAL');
   const [tags, setTags] = useState<string[]>(existingArticle?.tags || []);
-  const [tagInput, setTagInput] = useState('');
   const [featured, setFeatured] = useState(existingArticle?.featured || false);
-  
-  const [thumbnailImage, setThumbnailImage] = useState<any>(null);
-  const [thumbnailUrl, setThumbnailUrl] = useState(existingArticle?.thumbnailUrl || '');
-  const [mediaImages, setMediaImages] = useState<any[]>([]);
   const [mediaUrls, setMediaUrls] = useState<string[]>(existingArticle?.mediaUrls || []);
   
+  // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tagInput, setTagInput] = useState('');
+  const [mediaImages, setMediaImages] = useState<any[]>([]);
+  const [thumbnailImage, setThumbnailImage] = useState<any>(null);
 
-  // Request permission for image picker
+  // Categories for news articles
+  const categories = [
+    'GENERAL',
+    'NATIONAL TEAM',
+    "MEN'S PREMIER LEAGUE",
+    "WOMEN'S PREMIER LEAGUE",
+    'YOUTH FOOTBALL',
+    'COACHING & DEVELOPMENT',
+    'TRANSFERS'
+  ];
+
   useEffect(() => {
-    (async () => {
-      if (Platform.OS !== 'web') {
+    // Request media permissions
+    const requestPermissions = async () => {
+      try {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to select images.');
+          Alert.alert(
+            'Permission Required',
+            'We need access to your photo library to add images to articles.'
+          );
         }
+      } catch (error) {
+        console.error('Error requesting permissions:', error);
       }
-    })();
+    };
+
+    requestPermissions();
   }, []);
-
-  const pickThumbnailImage = async () => {
-    try {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [16, 9],
-        quality: 0.8,
-      });
-
-      if (!result.canceled) {
-        setThumbnailImage(result.assets[0]);
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
-    }
-  };
-
-  const pickMediaImages = async () => {
-    try {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: true,
-        quality: 0.8,
-      });
-
-      if (!result.canceled) {
-        setMediaImages([...mediaImages, ...result.assets]);
-      }
-    } catch (error) {
-      console.error('Error picking images:', error);
-      Alert.alert('Error', 'Failed to pick images. Please try again.');
-    }
-  };
-
-  const removeMediaImage = (index: number) => {
-    const updatedImages = [...mediaImages];
-    updatedImages.splice(index, 1);
-    setMediaImages(updatedImages);
-  };
-
-  const removeMediaUrl = (index: number) => {
-    const updatedUrls = [...mediaUrls];
-    updatedUrls.splice(index, 1);
-    setMediaUrls(updatedUrls);
-  };
-
-  const addTag = () => {
-    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
-      setTags([...tags, tagInput.trim()]);
-      setTagInput('');
-    }
-  };
-
-  const removeTag = (index: number) => {
-    const updatedTags = [...tags];
-    updatedTags.splice(index, 1);
-    setTags(updatedTags);
-  };
 
   const validateForm = () => {
     if (!title.trim()) {
       setError('Title is required');
+      return false;
+    }
+    
+    if (title.length > 100) {
+      setError('Title must be less than 100 characters');
       return false;
     }
     
@@ -133,16 +92,28 @@ const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) =
       return false;
     }
     
+    if (body.length < 50) {
+      setError('Content must be at least 50 characters long');
+      return false;
+    }
+    
     if (!category) {
       setError('Category is required');
       return false;
     }
     
+    setError(null);
     return true;
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    console.log('Form submit started...');
+    
+    if (!validateForm()) {
+      console.log('Form validation failed');
+      return;
+    }
+    
     if (!user) {
       setError('You must be logged in to publish news');
       return;
@@ -152,61 +123,71 @@ const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) =
       setLoading(true);
       setError(null);
       
-      // Convert image objects to blobs for Firebase
-      let thumbnailBlob = null;
-      let mediaBlobs = null;
+      console.log('Submitting article:', { title, category, featured });
+      
+      // Convert image objects to blobs for Firebase if we have them
+      let thumbnailBlob: Blob | undefined = undefined;
+      let mediaBlobs: Blob[] | undefined = undefined;
       
       if (thumbnailImage) {
-        const response = await fetch(thumbnailImage.uri);
-        thumbnailBlob = await response.blob();
+        try {
+          const response = await fetch(thumbnailImage.uri);
+          thumbnailBlob = await response.blob();
+        } catch (error) {
+          console.error('Error converting thumbnail to blob:', error);
+          // Continue without thumbnail
+        }
       }
       
       if (mediaImages.length > 0) {
-        mediaBlobs = await Promise.all(
-          mediaImages.map(async (image: any) => {
-            const response = await fetch(image.uri);
-            return response.blob();
-          })
-        );
+        try {
+          mediaBlobs = await Promise.all(
+            mediaImages.map(async (image: any) => {
+              const response = await fetch(image.uri);
+              return response.blob();
+            })
+          );
+        } catch (error) {
+          console.error('Error converting media images to blobs:', error);
+          // Continue without additional media
+        }
       }
       
+      // Prepare article data
+      const articleData = {
+        title: title.trim(),
+        body: body.trim(),
+        summary: summary.trim() || '',
+        author: user.displayName || user.email || 'CIFA Staff',
+        date: existingArticle?.date || Timestamp.fromDate(new Date()),
+        category,
+        tags,
+        featured,
+        mediaUrls: existingArticle?.mediaUrls || [],
+        thumbnailUrl: existingArticle?.thumbnailUrl || ''
+      };
+
       if (existingArticle) {
         // Update existing article
+        console.log('Updating existing article:', existingArticle.id);
         await updateNewsArticle(
           existingArticle.id,
-          {
-            title,
-            body,
-            summary,
-            category,
-            tags,
-            featured,
-            mediaUrls
-          },
-          thumbnailBlob || undefined, // Convert null to undefined
-          mediaBlobs || undefined
+          articleData,
+          thumbnailBlob,
+          mediaBlobs
         );
       } else {
         // Create new article
+        console.log('Creating new article...');
         await createNewsArticle(
-          {
-            title,
-            body,
-            summary,
-            author: user.displayName || 'CIFA Staff',
-            date: Timestamp.fromDate(new Date()),
-            category,
-            tags,
-            featured,
-            mediaUrls: [],
-            thumbnailUrl: ''
-          },
-          thumbnailBlob || undefined,
-          mediaBlobs || undefined
+          articleData,
+          thumbnailBlob,
+          mediaBlobs
         );
       }
       
       setLoading(false);
+      
       Alert.alert(
         'Success', 
         `Article ${existingArticle ? 'updated' : 'published'} successfully`,
@@ -227,32 +208,73 @@ const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) =
       setLoading(false);
       console.error('Error saving article:', err);
       setError('Failed to save article. Please try again.');
+      Alert.alert('Error', 'Failed to save article. Please try again.');
     }
   };
 
-  // Categories for news articles
-  const categories = [
-    'GENERAL',
-    'NATIONAL TEAM',
-    "MEN'S PREMIER LEAGUE",
-    "WOMEN'S PREMIER LEAGUE",
-    'YOUTH FOOTBALL',
-    'COACHING & DEVELOPMENT',
-    'TRANSFERS'
-  ];
+  const addTag = () => {
+    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
+      setTags([...tags, tagInput.trim()]);
+      setTagInput('');
+    }
+  };
+
+  const removeTag = (index: number) => {
+    const updatedTags = [...tags];
+    updatedTags.splice(index, 1);
+    setTags(updatedTags);
+  };
+
+  const pickThumbnailImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setThumbnailImage(result.assets[0]);
+      }
+    } catch (error) {
+      console.error('Error picking thumbnail:', error);
+      Alert.alert('Error', 'Failed to pick thumbnail image.');
+    }
+  };
+
+  const pickMediaImages = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setMediaImages([...mediaImages, ...result.assets]);
+      }
+    } catch (error) {
+      console.error('Error picking images:', error);
+      Alert.alert('Error', 'Failed to pick images.');
+    }
+  };
 
   return (
     <KeyboardAwareScrollView 
       style={styles.container}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
       <View style={styles.formContainer}>
         {error && (
           <View style={styles.errorContainer}>
+            <Feather name="alert-circle" size={16} color="#dc2626" />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
         
+        {/* Title */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Title *</Text>
           <TextInput
@@ -261,25 +283,33 @@ const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) =
             onChangeText={setTitle}
             placeholder="Enter article title"
             maxLength={100}
-          />
-        </View>
-        
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Summary</Text>
-          <TextInput
-            style={styles.input}
-            value={summary}
-            onChangeText={setSummary}
-            placeholder="Brief summary of the article"
-            maxLength={200}
-            multiline
-            numberOfLines={3}
+            editable={!loading}
           />
           <Text style={styles.helperText}>
-            Optional brief summary that will appear in article previews
+            {title.length}/100 characters
           </Text>
         </View>
         
+        {/* Summary */}
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Summary</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={summary}
+            onChangeText={setSummary}
+            placeholder="Brief summary of the article (optional)"
+            maxLength={200}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+            editable={!loading}
+          />
+          <Text style={styles.helperText}>
+            Optional brief summary that will appear in article previews ({summary.length}/200)
+          </Text>
+        </View>
+        
+        {/* Category */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Category *</Text>
           <View style={styles.pickerContainer}>
@@ -287,6 +317,7 @@ const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) =
               selectedValue={category}
               onValueChange={(itemValue) => setCategory(itemValue)}
               style={styles.picker}
+              enabled={!loading}
             >
               {categories.map((cat) => (
                 <Picker.Item key={cat} label={cat} value={cat} />
@@ -295,69 +326,42 @@ const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) =
           </View>
         </View>
         
+        {/* Featured Article Toggle */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Featured Article</Text>
           <View style={styles.switchContainer}>
+            <Text style={styles.label}>Featured Article</Text>
             <Switch
               value={featured}
               onValueChange={setFeatured}
               trackColor={{ false: '#d1d5db', true: '#bfdbfe' }}
               thumbColor={featured ? '#2563eb' : '#f4f4f5'}
+              disabled={loading}
             />
-            <Text style={styles.switchLabel}>
-              {featured ? 'This article will be featured' : 'This article will not be featured'}
-            </Text>
           </View>
           <Text style={styles.helperText}>
-            Featured articles appear prominently on the home screen
+            {featured ? 'This article will be featured prominently' : 'Feature this article on the homepage'}
           </Text>
         </View>
         
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Thumbnail Image</Text>
-          <View style={styles.imagePickerContainer}>
-            {thumbnailImage || thumbnailUrl ? (
-              <View style={styles.thumbnailContainer}>
-                <Image 
-                  source={{ 
-                    uri: thumbnailImage ? thumbnailImage.uri : thumbnailUrl 
-                  }} 
-                  style={styles.thumbnailPreview} 
-                />
-                <TouchableOpacity 
-                  style={styles.removeImageButton}
-                  onPress={() => {
-                    setThumbnailImage(null);
-                    setThumbnailUrl('');
-                  }}
-                >
-                  <Feather name="x" size={16} color="white" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity 
-                style={styles.imagePicker}
-                onPress={pickThumbnailImage}
-              >
-                <Feather name="image" size={24} color="#6b7280" />
-                <Text style={styles.imagePickerText}>Select Thumbnail</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-        
+        {/* Content */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Content *</Text>
           <TextInput
-            style={styles.textArea}
+            style={[styles.input, styles.contentTextArea]}
             value={body}
             onChangeText={setBody}
             placeholder="Write your article content here..."
             multiline
-            numberOfLines={10}
+            numberOfLines={15}
+            textAlignVertical="top"
+            editable={!loading}
           />
+          <Text style={styles.helperText}>
+            Article content ({body.length} characters, minimum 50 required)
+          </Text>
         </View>
         
+        {/* Tags */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Tags</Text>
           <View style={styles.tagInputContainer}>
@@ -366,77 +370,86 @@ const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) =
               value={tagInput}
               onChangeText={setTagInput}
               placeholder="Add a tag"
+              onSubmitEditing={addTag}
+              editable={!loading}
             />
             <TouchableOpacity 
               style={styles.addTagButton}
               onPress={addTag}
+              disabled={loading || !tagInput.trim()}
             >
               <Text style={styles.addTagButtonText}>Add</Text>
             </TouchableOpacity>
           </View>
           
-          <View style={styles.tagsContainer}>
-            {tags.map((tag, index) => (
-              <View key={index} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
-                <TouchableOpacity 
-                  style={styles.removeTagButton}
-                  onPress={() => removeTag(index)}
-                >
-                  <Feather name="x" size={12} color="#4b5563" />
-                </TouchableOpacity>
-              </View>
-            ))}
+          {tags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              {tags.map((tag, index) => (
+                <View key={index} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                  <TouchableOpacity 
+                    onPress={() => removeTag(index)}
+                    style={styles.removeTagButton}
+                    disabled={loading}
+                  >
+                    <Feather name="x" size={12} color="#6b7280" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+          <Text style={styles.helperText}>
+            Add relevant tags to help categorize your article
+          </Text>
+        </View>
+        
+        {/* Media Section */}
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Media</Text>
+          
+          {/* Thumbnail */}
+          <View style={styles.mediaSection}>
+            <Text style={styles.mediaLabel}>Thumbnail Image</Text>
+            <TouchableOpacity 
+              style={styles.mediaPickerButton}
+              onPress={pickThumbnailImage}
+              disabled={loading}
+            >
+              <Feather name="image" size={16} color="white" />
+              <Text style={styles.mediaPickerText}>
+                {thumbnailImage ? 'Change Thumbnail' : 'Select Thumbnail'}
+              </Text>
+            </TouchableOpacity>
+            {thumbnailImage && (
+              <Text style={styles.mediaInfo}>✓ Thumbnail selected</Text>
+            )}
+          </View>
+          
+          {/* Additional Images */}
+          <View style={styles.mediaSection}>
+            <Text style={styles.mediaLabel}>Additional Images</Text>
+            <TouchableOpacity 
+              style={styles.mediaPickerButton}
+              onPress={pickMediaImages}
+              disabled={loading}
+            >
+              <Feather name="camera" size={16} color="white" />
+              <Text style={styles.mediaPickerText}>Add Images</Text>
+            </TouchableOpacity>
+            {mediaImages.length > 0 && (
+              <Text style={styles.mediaInfo}>✓ {mediaImages.length} image(s) selected</Text>
+            )}
           </View>
         </View>
         
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Media Gallery</Text>
-          <TouchableOpacity 
-            style={styles.mediaPickerButton}
-            onPress={pickMediaImages}
-          >
-            <Feather name="plus" size={20} color="white" />
-            <Text style={styles.mediaPickerText}>Add Images</Text>
-          </TouchableOpacity>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.mediaGallery}
-          >
-            {mediaUrls.map((url, index) => (
-              <View key={`url-${index}`} style={styles.mediaItem}>
-                <Image source={{ uri: url }} style={styles.mediaImage} />
-                <TouchableOpacity 
-                  style={styles.removeMediaButton}
-                  onPress={() => removeMediaUrl(index)}
-                >
-                  <Feather name="trash-2" size={16} color="white" />
-                </TouchableOpacity>
-              </View>
-            ))}
-            
-            {mediaImages.map((image, index) => (
-              <View key={`image-${index}`} style={styles.mediaItem}>
-                <Image source={{ uri: image.uri }} style={styles.mediaImage} />
-                <TouchableOpacity 
-                  style={styles.removeMediaButton}
-                  onPress={() => removeMediaImage(index)}
-                >
-                  <Feather name="trash-2" size={16} color="white" />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-        
+        {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <Button 
-            title={existingArticle ? 'Update Article' : 'Publish Article'}
+            title={loading ? 'Publishing...' : (existingArticle ? 'Update Article' : 'Publish Article')}
             onPress={handleSubmit}
             loading={loading}
             style={styles.publishButton}
+            disabled={loading}
           />
           
           <Button 
@@ -444,6 +457,7 @@ const NewsForm: React.FC<NewsFormProps> = ({ existingArticle, onSaveSuccess }) =
             onPress={() => router.back()}
             variant="outline"
             style={styles.cancelButton}
+            disabled={loading}
           />
         </View>
       </View>
@@ -466,37 +480,39 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#fecaca',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   errorText: {
-    color: '#b91c1c',
+    color: '#dc2626',
     fontSize: 14,
+    marginLeft: 8,
+    flex: 1,
   },
   formGroup: {
     marginBottom: 20,
   },
   label: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#374151',
     marginBottom: 8,
   },
   input: {
     backgroundColor: '#ffffff',
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderWidth: 1,
     borderColor: '#d1d5db',
-    borderRadius: 6,
+    borderRadius: 8,
     fontSize: 16,
+    color: '#1f2937',
   },
   textArea: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 6,
-    fontSize: 16,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  contentTextArea: {
     minHeight: 200,
     textAlignVertical: 'top',
   },
@@ -509,63 +525,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#d1d5db',
-    borderRadius: 6,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   picker: {
     height: 50,
-    width: '100%',
   },
   switchContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
-  switchLabel: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: '#374151',
-  },
-  imagePickerContainer: {
-    marginBottom: 12,
-  },
-  imagePicker: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderStyle: 'dashed',
-    borderRadius: 6,
-    height: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imagePickerText: {
-    color: '#6b7280',
-    marginTop: 8,
-    fontSize: 14,
-  },
-  thumbnailContainer: {
-    position: 'relative',
-    height: 180,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  thumbnailPreview: {
-    width: '100%',
-    height: '100%',
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
   tagInputContainer: {
     flexDirection: 'row',
+    gap: 8,
     marginBottom: 12,
   },
   tagInput: {
@@ -575,30 +548,31 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderWidth: 1,
     borderColor: '#d1d5db',
-    borderTopLeftRadius: 6,
-    borderBottomLeftRadius: 6,
-    fontSize: 16,
+    borderRadius: 6,
+    fontSize: 14,
   },
   addTagButton: {
     backgroundColor: '#2563eb',
     paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 6,
     justifyContent: 'center',
-    borderTopRightRadius: 6,
-    borderBottomRightRadius: 6,
   },
   addTagButtonText: {
     color: 'white',
     fontWeight: '500',
+    fontSize: 14,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginBottom: 8,
   },
   tag: {
     backgroundColor: '#e5e7eb',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -606,64 +580,51 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 14,
     color: '#4b5563',
-    marginRight: 4,
+    marginRight: 6,
   },
   removeTagButton: {
-    width: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 2,
+  },
+  mediaSection: {
+    marginBottom: 16,
+  },
+  mediaLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
   },
   mediaPickerButton: {
     backgroundColor: '#2563eb',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 6,
-    marginBottom: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
   },
   mediaPickerText: {
     color: 'white',
     fontWeight: '500',
     marginLeft: 8,
+    fontSize: 14,
   },
-  mediaGallery: {
-    paddingBottom: 12,
-  },
-  mediaItem: {
-    width: 100,
-    height: 100,
-    borderRadius: 6,
-    overflow: 'hidden',
-    marginRight: 8,
-    position: 'relative',
-  },
-  mediaImage: {
-    width: '100%',
-    height: '100%',
-  },
-  removeMediaButton: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+  mediaInfo: {
+    fontSize: 12,
+    color: '#059669',
+    fontWeight: '500',
   },
   buttonContainer: {
-    marginTop: 16,
-    flexDirection: 'row',
+    marginTop: 24,
+    gap: 12,
   },
   publishButton: {
-    flex: 2,
-    marginRight: 8,
+    backgroundColor: '#2563eb',
   },
   cancelButton: {
-    flex: 1,
-  }
+    borderColor: '#d1d5db',
+  },
 });
+
 export default NewsForm;

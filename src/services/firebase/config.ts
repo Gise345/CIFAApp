@@ -1,7 +1,7 @@
 // src/services/firebase/config.ts - Updated with Auth Persistence
 import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, initializeAuth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore, collection, getDocs, limit, query } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
@@ -109,9 +109,6 @@ export const checkFirestoreConnection = async (): Promise<boolean> => {
   }
   
   try {
-    // Use dynamic import to avoid blocking
-    const { collection, getDocs, limit, query } = await import('firebase/firestore');
-    
     // Try to fetch a single document from any collection with a limit
     const teamsQuery = query(
       collection(firestore, 'teams'),

@@ -39,7 +39,13 @@ import {
     limit_num: number = 10
   ): Promise<NewsArticle[]> => {
     try {
-      const newsCollection = collection(firestore, 'news');
+      if (!firestore) {
+        throw new Error('Firestore instance is undefined.');
+      }
+      if (!firestore) {
+        throw new Error('Firestore instance is undefined.');
+      }
+      const newsCollection = collection(firestore!, 'news');
       let newsQuery;
       
       if (category && featured !== undefined) {
@@ -103,6 +109,9 @@ import {
    */
   export const getNewsById = async (newsId: string): Promise<NewsArticle | null> => {
     try {
+      if (!firestore) {
+        throw new Error('Firestore instance is undefined.');
+      }
       const newsDoc = await getDoc(doc(firestore, 'news', newsId));
       
       if (!newsDoc.exists()) {
@@ -128,6 +137,9 @@ import {
     try {
       // For simple search, we get all articles and filter in memory
       // This is not efficient for large datasets
+      if (!firestore) {
+        throw new Error('Firestore instance is undefined.');
+      }
       const newsCollection = collection(firestore, 'news');
       const newsQuery = query(
         newsCollection, 
@@ -171,6 +183,9 @@ import {
       
       // If a thumbnail file is provided, upload it to storage
       if (thumbnailFile) {
+        if (!storage) {
+          throw new Error('Firebase storage instance is undefined.');
+        }
         const storageRef = ref(storage, `news-thumbnails/${Date.now()}-${article.title.replace(/\s+/g, '-').toLowerCase()}`);
         await uploadBytes(storageRef, thumbnailFile);
         thumbnailUrl = await getDownloadURL(storageRef);
@@ -180,6 +195,9 @@ import {
       if (mediaFiles && mediaFiles.length > 0) {
         for (let i = 0; i < mediaFiles.length; i++) {
           const file = mediaFiles[i];
+          if (!storage) {
+            throw new Error('Firebase storage instance is undefined.');
+          }
           const storageRef = ref(storage, `news-media/${Date.now()}-${i}-${article.title.replace(/\s+/g, '-').toLowerCase()}`);
           await uploadBytes(storageRef, file);
           const url = await getDownloadURL(storageRef);
@@ -195,6 +213,9 @@ import {
         createdAt: Timestamp.now()
       };
       
+      if (!firestore) {
+        throw new Error('Firestore instance is undefined.');
+      }
       const docRef = await addDoc(collection(firestore, 'news'), articleData);
       return docRef.id;
     } catch (error) {
@@ -213,12 +234,15 @@ import {
     mediaFiles?: Blob[]
   ): Promise<void> => {
     try {
-      const articleRef = doc(firestore, 'news', newsId);
+      if (!firestore) {
+        throw new Error('Firestore instance is undefined.');
+      }
+      const articleRef = doc(firestore!, 'news', newsId);
       let updateData = { ...articleData };
       
       // If a thumbnail file is provided, upload it to storage
       if (thumbnailFile) {
-        const storageRef = ref(storage, `news-thumbnails/${Date.now()}-${articleData.title?.replace(/\s+/g, '-').toLowerCase() || 'thumbnail'}`);
+        const storageRef = ref(storage!, `news-thumbnails/${Date.now()}-${articleData.title?.replace(/\s+/g, '-').toLowerCase() || 'thumbnail'}`);
         await uploadBytes(storageRef, thumbnailFile);
         const url = await getDownloadURL(storageRef);
         updateData.thumbnailUrl = url;
@@ -234,6 +258,9 @@ import {
           const newMediaUrls: string[] = [];
           for (let i = 0; i < mediaFiles.length; i++) {
             const file = mediaFiles[i];
+            if (!storage) {
+              throw new Error('Firebase storage instance is undefined.');
+            }
             const storageRef = ref(storage, `news-media/${Date.now()}-${i}-${articleData.title?.replace(/\s+/g, '-').toLowerCase() || 'media'}`);
             await uploadBytes(storageRef, file);
             const url = await getDownloadURL(storageRef);
@@ -259,6 +286,9 @@ import {
    */
   export const deleteNewsArticle = async (newsId: string): Promise<void> => {
     try {
+      if (!firestore) {
+        throw new Error('Firestore instance is undefined.');
+      }
       await deleteDoc(doc(firestore, 'news', newsId));
     } catch (error) {
       console.error('Error deleting news article:', error);
@@ -271,7 +301,10 @@ import {
    */
   export const toggleFeaturedStatus = async (newsId: string, featured: boolean): Promise<void> => {
     try {
-      const articleRef = doc(firestore, 'news', newsId);
+      if (!firestore) {
+        throw new Error('Firestore instance is undefined.');
+      }
+      const articleRef = doc(firestore!, 'news', newsId);
       await updateDoc(articleRef, {
         featured,
         updatedAt: Timestamp.now()

@@ -1,4 +1,4 @@
-// app/admin/news/index.tsx - Admin News Management
+// app/admin/news/index.tsx - Fixed Admin News Management
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
@@ -32,7 +32,6 @@ import Button from '../../../src/components/common/Button';
 import { firestore } from '../../../src/services/firebase/config';
 import { useAuth } from '../../../src/hooks/useAuth';
 
-
 interface NewsArticle {
   id: string;
   title: string;
@@ -53,64 +52,34 @@ export default function AdminNewsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
-  
-
-  const fetchNews = async () => {
-    if (!firestore) {
-      Alert.alert('Error', 'Database connection not available');
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      const newsQuery = query(
-        collection(firestore, 'news'),
-        orderBy('date', 'desc')
-      );
-      
-      const snapshot = await getDocs(newsQuery);
-      const newsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as NewsArticle));
-      
-      setNews(newsData);
-    } catch (error) {
-      console.error('Error fetching news:', error);
-      Alert.alert('Error', 'Failed to load news articles');
-    } finally {
-      setLoading(false);
-    }
-  };
-
 
   useEffect(() => {
-  // Only check auth after loading is complete
-  if (!authLoading) {
-    console.log('Admin News Screen - Auth Check:', {
-      user: user?.email,
-      isAdmin,
-      authLoading
-    });
-    
-    if (!user) {
-      Alert.alert('Authentication Required', 'Please log in to access this page');
-      router.replace('/(auth)/login');
-      return;
+    // Only check auth after loading is complete
+    if (!authLoading) {
+      console.log('Admin News Screen - Auth Check:', {
+        user: user?.email,
+        isAdmin,
+        authLoading
+      });
+      
+      if (!user) {
+        Alert.alert('Authentication Required', 'Please log in to access this page');
+        router.replace('/(auth)/login');
+        return;
+      }
+      
+      if (isAdmin === false) {
+        Alert.alert('Access Denied', 'You must be an admin to access this page');
+        router.back();
+        return;
+      }
+      
+      if (isAdmin === true) {
+        setHasCheckedAuth(true);
+        fetchArticles();
+      }
     }
-    
-    if (isAdmin === false) {
-      Alert.alert('Access Denied', 'You must be an admin to access this page');
-      router.back();
-      return;
-    }
-    
-    if (isAdmin === true) {
-      setHasCheckedAuth(true);
-      fetchNews();
-    }
-  }
-}, [authLoading, user, isAdmin]);
+  }, [authLoading, user, isAdmin]);
 
   const fetchArticles = async () => {
     if (!firestore) {
@@ -146,12 +115,59 @@ export default function AdminNewsScreen() {
     setRefreshing(false);
   };
 
+  // Fixed navigation function for SDK 52
   const handleCreateArticle = () => {
-    router.push('/admin/news/create');
+    console.log('Create article button pressed');
+    
+    try {
+      // SDK 52 compatible navigation
+      router.push('/admin/news/create' as any);
+      console.log('Navigation successful');
+    } catch (error) {
+      console.error('Primary navigation failed:', error);
+      
+      try {
+        // Fallback method for SDK 52
+        router.replace('/admin/news/create' as any);
+        console.log('Fallback navigation successful');
+      } catch (error2) {
+        console.error('Fallback navigation failed:', error2);
+        Alert.alert(
+          'Navigation Error', 
+          'Unable to navigate to create article page. Please try refreshing the app.',
+          [
+            { text: 'OK' },
+            { 
+              text: 'Refresh App', 
+              onPress: () => {
+                // Simple page refresh fallback
+                try {
+                  router.replace('/admin/news' as any);
+                } catch (e) {
+                  console.error('Refresh failed:', e);
+                }
+              }
+            }
+          ]
+        );
+      }
+    }
   };
 
   const handleEditArticle = (articleId: string) => {
-    router.push(`/admin/news/edit/${articleId}`);
+    console.log('Edit article:', articleId);
+    
+    try {
+      router.push(`/admin/news/edit/${articleId}` as any);
+    } catch (error) {
+      console.error('Edit navigation failed:', error);
+      try {
+        router.replace(`/admin/news/edit/${articleId}` as any);
+      } catch (error2) {
+        console.error('Edit navigation fallback failed:', error2);
+        Alert.alert('Navigation Error', 'Unable to navigate to edit article page. Please try refreshing the app.');
+      }
+    }
   };
 
   const handleDeleteArticle = (article: NewsArticle) => {
@@ -194,6 +210,7 @@ export default function AdminNewsScreen() {
     }
   };
 
+  // Loading state
   if (authLoading || (!hasCheckedAuth && isAdmin !== false)) {
     return (
       <LinearGradient
@@ -211,9 +228,10 @@ export default function AdminNewsScreen() {
     );
   }
 
+  // Auth check failed
   if (!isAdmin || !hasCheckedAuth) {
-  return null;
-}
+    return null;
+  }
 
   return (
     <LinearGradient
@@ -238,11 +256,14 @@ export default function AdminNewsScreen() {
           {/* Header with Create Button */}
           <View style={styles.headerSection}>
             <Text style={styles.titleText}>Articles ({articles.length})</Text>
-            <Button 
-              title="Create Article" 
-              onPress={handleCreateArticle}
+            <TouchableOpacity 
               style={styles.createButton}
-            />
+              onPress={handleCreateArticle}
+              activeOpacity={0.7}
+            >
+              <Feather name="plus" size={16} color="white" />
+              <Text style={styles.createButtonText}>Create Article</Text>
+            </TouchableOpacity>
           </View>
           
           {/* Articles List */}
@@ -250,11 +271,13 @@ export default function AdminNewsScreen() {
             <View style={styles.emptyContainer}>
               <Feather name="file-text" size={48} color="#9ca3af" />
               <Text style={styles.emptyText}>No articles found</Text>
-              <Button 
-                title="Create First Article" 
-                onPress={handleCreateArticle}
+              <TouchableOpacity 
                 style={styles.emptyButton}
-              />
+                onPress={handleCreateArticle}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.emptyButtonText}>Create First Article</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             articles.map(article => (
@@ -290,32 +313,31 @@ export default function AdminNewsScreen() {
                 </View>
                 
                 <Text style={styles.articleSummary} numberOfLines={3}>
-                  {article.summary || article.body.substring(0, 150) + '...'}
+                  {article.summary || article.body}
                 </Text>
                 
-                <View style={styles.articleActions}>
+                <View style={styles.actionButtons}>
                   <TouchableOpacity 
-                    style={styles.actionButton}
+                    style={[styles.actionButton, styles.editButton]}
                     onPress={() => handleEditArticle(article.id)}
+                    activeOpacity={0.7}
                   >
                     <Feather name="edit-2" size={16} color="#2563eb" />
-                    <Text style={styles.actionButtonText}>Edit</Text>
+                    <Text style={styles.editButtonText}>Edit</Text>
                   </TouchableOpacity>
                   
                   <TouchableOpacity 
-                    style={styles.actionButton}
+                    style={[styles.actionButton, styles.deleteButton]}
                     onPress={() => handleDeleteArticle(article)}
+                    activeOpacity={0.7}
                   >
                     <Feather name="trash-2" size={16} color="#ef4444" />
-                    <Text style={[styles.actionButtonText, styles.deleteText]}>Delete</Text>
+                    <Text style={styles.deleteButtonText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               </Card>
             ))
           )}
-          
-          {/* Footer spacing */}
-          <View style={styles.footer} />
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -339,11 +361,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
     color: 'white',
+    fontSize: 16,
+    marginTop: 12,
   },
   headerSection: {
     flexDirection: 'row',
@@ -352,34 +377,56 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+    backgroundColor: 'white',
   },
   titleText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#1f2937',
   },
   createButton: {
+    backgroundColor: '#2563eb',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
     minWidth: 120,
+    justifyContent: 'center',
+  },
+  createButtonText: {
+    color: 'white',
+    fontWeight: '500',
+    marginLeft: 4,
+    fontSize: 14,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 80,
+    padding: 32,
+    minHeight: 300,
   },
   emptyText: {
     fontSize: 16,
     color: '#6b7280',
-    marginTop: 12,
-    marginBottom: 20,
-    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 24,
   },
   emptyButton: {
-    minWidth: 160,
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 6,
+  },
+  emptyButtonText: {
+    color: 'white',
+    fontWeight: '500',
+    fontSize: 16,
   },
   articleCard: {
-    margin: 16,
-    marginBottom: 8,
+    marginHorizontal: 16,
+    marginVertical: 8,
     padding: 16,
   },
   articleHeader: {
@@ -391,8 +438,8 @@ const styles = StyleSheet.create({
   },
   articleTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: '600',
+    color: '#1f2937',
     marginBottom: 4,
   },
   articleMeta: {
@@ -402,62 +449,62 @@ const styles = StyleSheet.create({
   },
   badgeContainer: {
     flexDirection: 'row',
+    gap: 8,
   },
   categoryBadge: {
-    marginRight: 6,
+    backgroundColor: '#dbeafe',
   },
   featuredBadge: {
-    marginRight: 6,
+    backgroundColor: '#dcfce7',
   },
   thumbnailContainer: {
-    width: 40,
-    height: 40,
+    width: 60,
+    height: 60,
     backgroundColor: '#f3f4f6',
-    borderRadius: 8,
+    borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 12,
   },
   thumbnailText: {
-    fontSize: 20,
+    fontSize: 24,
   },
   articleSummary: {
     fontSize: 14,
     color: '#4b5563',
     lineHeight: 20,
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  articleActions: {
+  actionButtons: {
     flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-    paddingTop: 12,
+    gap: 12,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
     paddingHorizontal: 12,
-    marginRight: 12,
+    paddingVertical: 8,
     borderRadius: 6,
-    backgroundColor: '#f9fafb',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
-  actionButtonText: {
-    fontSize: 14,
+  editButton: {
+    borderColor: '#2563eb',
+    backgroundColor: '#eff6ff',
+  },
+  editButtonText: {
     color: '#2563eb',
-    marginLeft: 6,
+    marginLeft: 4,
+    fontSize: 14,
     fontWeight: '500',
   },
-  deleteText: {
-    color: '#ef4444',
+  deleteButton: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fef2f2',
   },
-  footer: {
-    height: 40,
+  deleteButtonText: {
+    color: '#ef4444',
+    marginLeft: 4,
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
-
-function setNews(newsData: NewsArticle[]) {
-  throw new Error('Function not implemented.');
-}
