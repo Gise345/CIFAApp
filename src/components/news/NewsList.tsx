@@ -1,4 +1,4 @@
-// CIFAMobileApp/src/components/news/NewsList.tsx
+// src/components/news/NewsList.tsx - Fixed with Proper Navigation
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import NewsCard from './NewsCard';
 import { useNews } from '../../hooks/useNews';
 import { NewsArticle } from '../../services/firebase/news';
-import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';;
+import { formatDistanceToNow } from 'date-fns';
 
 interface NewsListProps {
   category?: string;
@@ -25,6 +25,7 @@ interface NewsListProps {
   limit?: number;
   showSearch?: boolean;
   showCategories?: boolean;
+  onNavigateToArticle?: (articleId: string) => void; // New prop for custom navigation
 }
 
 const NewsList: React.FC<NewsListProps> = ({
@@ -32,7 +33,8 @@ const NewsList: React.FC<NewsListProps> = ({
   featured = false,
   limit = 10,
   showSearch = true,
-  showCategories = true
+  showCategories = true,
+  onNavigateToArticle
 }) => {
   const router = useRouter();
   const { 
@@ -53,11 +55,13 @@ const NewsList: React.FC<NewsListProps> = ({
   // Categories for filtering
   const categories = [
     'ALL',
+    'GENERAL',
     'NATIONAL TEAM',
     "MEN'S PREMIER LEAGUE",
     "WOMEN'S PREMIER LEAGUE",
     'YOUTH FOOTBALL',
-    'COACHING & DEVELOPMENT'
+    'COACHING & DEVELOPMENT',
+    'TRANSFERS'
   ];
 
   // Load articles on mount and when dependencies change
@@ -72,12 +76,16 @@ const NewsList: React.FC<NewsListProps> = ({
 
   // Load articles based on props
   const loadArticles = async () => {
-    if (featured) {
-      await fetchFeaturedNews(limit);
-    } else if (activeCategory && activeCategory !== 'ALL') {
-      await fetchNewsByCategory(activeCategory, limit);
-    } else {
-      await fetchNews(undefined, limit);
+    try {
+      if (featured) {
+        await fetchFeaturedNews(limit);
+      } else if (activeCategory && activeCategory !== 'ALL') {
+        await fetchNewsByCategory(activeCategory, limit);
+      } else {
+        await fetchNews(undefined, limit);
+      }
+    } catch (error) {
+      console.error('Error loading articles:', error);
     }
   };
 
@@ -91,8 +99,12 @@ const NewsList: React.FC<NewsListProps> = ({
   // Handle search
   const handleSearch = async () => {
     if (searchQuery.trim()) {
-      const results = await searchNewsArticles(searchQuery);
-      setDisplayArticles(results);
+      try {
+        const results = await searchNewsArticles(searchQuery);
+        setDisplayArticles(results);
+      } catch (error) {
+        console.error('Search error:', error);
+      }
     } else {
       setDisplayArticles(articles);
     }
@@ -108,7 +120,6 @@ const NewsList: React.FC<NewsListProps> = ({
   const formatDate = (timestamp: any) => {
     try {
       if (!timestamp) return '';
-      
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       return formatDistanceToNow(date, { addSuffix: true });
     } catch (error) {
@@ -116,9 +127,32 @@ const NewsList: React.FC<NewsListProps> = ({
     }
   };
 
-  // Navigate to article detail
+  // Navigate to article detail with improved error handling
   const navigateToArticle = (articleId: string) => {
-    router.push(`/news/${articleId}`);
+    console.log('NewsList: Navigating to article:', articleId);
+    
+    if (!articleId) {
+      console.error('NewsList: Article ID is missing or invalid');
+      return;
+    }
+
+    // Use custom navigation function if provided (from parent component)
+    if (onNavigateToArticle) {
+      onNavigateToArticle(articleId);
+      return;
+    }
+
+    // Default navigation logic
+    try {
+      router.push(`/news/${articleId}` as any);
+    } catch (error) {
+      console.error('NewsList: Navigation error:', error);
+      try {
+        router.replace(`/news/${articleId}` as any);
+      } catch (error2) {
+        console.error('NewsList: Fallback navigation failed:', error2);
+      }
+    }
   };
 
   // Handle category selection
@@ -191,7 +225,7 @@ const NewsList: React.FC<NewsListProps> = ({
     );
   };
 
-  // Render header
+  // Render featured badge
   const renderHeader = () => {
     return (
       <>
@@ -223,36 +257,31 @@ const NewsList: React.FC<NewsListProps> = ({
         </View>
       );
     }
-    
+
     if (error) {
       return (
         <View style={styles.emptyContainer}>
-          <Feather name="alert-circle" size={40} color="#ef4444" />
-          <Text style={styles.errorText}>Failed to load articles</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadArticles}>
+          <Feather name="wifi-off" size={48} color="#ef4444" />
+          <Text style={styles.emptyText}>Unable to load news</Text>
+          <Text style={styles.emptySubText}>Check your connection and try again</Text>
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={onRefresh}
+          >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
       );
     }
-    
-    if (searchQuery && displayArticles.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <Feather name="search" size={40} color="#6b7280" />
-          <Text style={styles.emptyText}>No results found for "{searchQuery}"</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={clearSearch}>
-            <Text style={styles.retryButtonText}>Clear Search</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    
+
     if (displayArticles.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <Feather name="file-text" size={40} color="#6b7280" />
+          <Feather name="file-text" size={48} color="#9ca3af" />
           <Text style={styles.emptyText}>No articles found</Text>
+          <Text style={styles.emptySubText}>
+            {searchQuery ? 'Try adjusting your search' : 'Check back later for new content'}
+          </Text>
           {activeCategory && (
             <TouchableOpacity 
               style={styles.retryButton} 
@@ -268,21 +297,28 @@ const NewsList: React.FC<NewsListProps> = ({
     return null;
   };
 
+  // Render single news item
+  const renderNewsItem = ({ item }: { item: NewsArticle }) => {
+    console.log('Rendering article:', item.id, 'with thumbnail:', item.thumbnailUrl);
+    
+    return (
+      <NewsCard
+        id={item.id}
+        title={item.title}
+        category={item.category}
+        imageUrl={item.thumbnailUrl} // This should now display the real image
+        timeAgo={formatDate(item.date)}
+        onPress={() => navigateToArticle(item.id)}
+        style={styles.newsCard}
+      />
+    );
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
         data={displayArticles}
-        renderItem={({ item }) => (
-          <NewsCard
-            id={item.id}
-            title={item.title}
-            category={item.category}
-            imageUrl={item.thumbnailUrl || ''}
-            timeAgo={formatDate(item.date)}
-            onPress={() => navigateToArticle(item.id)}
-            style={styles.newsCard}
-          />
-        )}
+        renderItem={renderNewsItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={renderHeader}
@@ -294,6 +330,7 @@ const NewsList: React.FC<NewsListProps> = ({
           // In a complete app, you would implement pagination here
         }}
         onEndReachedThreshold={0.5}
+        showsVerticalScrollIndicator={false}
       />
     </View>
   );
@@ -306,7 +343,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingBottom: 40, // Extra padding at bottom for better scrolling
+    paddingBottom: 40,
   },
   searchContainer: {
     marginBottom: 16,
@@ -315,19 +352,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 8,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    paddingHorizontal: 12,
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    height: 40,
     fontSize: 16,
-    color: '#374151',
+    color: '#1f2937',
   },
   clearButton: {
     padding: 4,
@@ -336,70 +373,77 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   categoriesList: {
-    paddingRight: 8,
+    paddingRight: 16,
   },
   categoryPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   activeCategoryPill: {
     backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
   },
   categoryPillText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '500',
-    color: '#4b5563',
+    color: '#6b7280',
   },
   activeCategoryPillText: {
-    color: 'white',
+    color: '#ffffff',
   },
   sectionHeader: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   featuredBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   featuredBadgeText: {
-    color: 'white',
+    color: '#ffffff',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   newsCard: {
     marginBottom: 16,
   },
   emptyContainer: {
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
-    padding: 40,
+    alignItems: 'center',
+    padding: 32,
+    minHeight: 300,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 16,
     textAlign: 'center',
-    marginTop: 12,
-    marginBottom: 20,
   },
-  errorText: {
-    fontSize: 16,
-    color: '#ef4444',
+  emptySubText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 8,
     textAlign: 'center',
-    marginTop: 12,
-    marginBottom: 20,
+    lineHeight: 20,
   },
   retryButton: {
     backgroundColor: '#2563eb',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 16,
   },
   retryButtonText: {
-    color: 'white',
+    color: '#ffffff',
     fontSize: 14,
     fontWeight: '500',
   },
