@@ -30,7 +30,7 @@ import { LineChart } from 'react-native-chart-kit';
 
 import Header from '../../src/components/common/Header';
 import Card from '../../src/components/common/Card';
-import { useAuth } from '../../src/hooks/useAuth';
+import { useAuth, useAdminCheck } from '../../src/hooks/useAuth';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -60,7 +60,8 @@ interface ChartData {
 
 export default function AdminDashboardScreen() {
   const router = useRouter();
-  const { user, isAdmin, loading: authLoading } = useAuth();
+  const { user, isAdmin, loading: authLoading, initialized  } = useAuth();
+    const { hasAdminAccess, isCheckingAdmin } = useAdminCheck();
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     activeUsers: 0,
@@ -213,11 +214,40 @@ export default function AdminDashboardScreen() {
   // Navigation functions - existing routes
   const navigateToNews = () => router.push('/admin/news/' as any);
   const navigateToMatches = () => router.push('/admin/matches/' as any);
-  const navigateToTeams = () => router.push('/admin/teams/' as any);
-  const navigateToPlayers = () => router.push('/admin/players/' as any);
   const navigateToUsers = () => router.push('/admin/users/' as any);
   const navigateToNotifications = () => router.push('/admin/notifications/' as any);
   const navigateToLeagues = () => router.push('/admin/leagues/' as any);
+
+  // Navigation functions - NEW ROUTES FOR STATS & DATA SECTION
+const navigateToPlayerStats = () => {
+  try {
+    console.log('🚀 Navigating to player stats...');
+    router.push('/admin/players/stats' as any);
+  } catch (error) {
+    console.error('❌ Navigation error to player stats:', error);
+    Alert.alert('Navigation Error', 'Could not open player stats. Please try again.');
+  }
+};
+
+const navigateToTeamStandings = () => {
+  try {
+    console.log('🚀 Navigating to team standings...');
+    router.push('/admin/teams/standings' as any);
+  } catch (error) {
+    console.error('❌ Navigation error to team standings:', error);
+    Alert.alert('Navigation Error', 'Could not open team standings. Please try again.');
+  }
+};
+
+const navigateToMatchStats = () => {
+  try {
+    console.log('🚀 Navigating to match stats...');
+    router.push('/admin/matches/stats' as any);
+  } catch (error) {
+    console.error('❌ Navigation error to match stats:', error);
+    router.push('/admin/matches/' as any);
+  }
+};
 
   // Navigation functions - new routes to be created
   const navigateToEvents = () => router.push('/admin/events/' as any);
@@ -255,8 +285,9 @@ export default function AdminDashboardScreen() {
       onPress: navigateToMatches,
       items: [
         { label: 'Match Results', route: navigateToMatches, icon: 'calendar' },
-        { label: 'Player Stats', route: navigateToPlayers, icon: 'user' },
-        { label: 'Team Standings', route: navigateToTeams, icon: 'users' },
+        { label: 'Player Stats', route: navigateToPlayerStats, icon: 'user' }, // ✅ Uses the specific function
+        { label: 'Team Standings', route: navigateToTeamStandings, icon: 'users' }, // ✅ Uses the specific function  
+        { label: 'Match Stats', route: navigateToMatchStats, icon: 'bar-chart' }, // ✅ Now this function is used
         { label: 'Leagues', route: navigateToLeagues, icon: 'award' }
       ]
     },
