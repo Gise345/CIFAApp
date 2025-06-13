@@ -1,4 +1,4 @@
-// app/admin/teams/standings.tsx - New Team Standings Management Page
+// app/admin/teams/standings.tsx - Fixed Firebase Integration
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
@@ -23,14 +23,22 @@ import {
   orderBy, 
   where,
   doc,
-  updateDoc
+  updateDoc,
+  Firestore
 } from 'firebase/firestore';
 import { firestore } from '../../../src/services/firebase/config';
 
 import Header from '../../../src/components/common/Header';
 import Card from '../../../src/components/common/Card';
-import Button from '../../../src/components/common/Button';
 import { useAuth } from '../../../src/hooks/useAuth';
+
+// Firebase guard function
+const getFirestore = (): Firestore => {
+  if (!firestore) {
+    throw new Error('Firestore is not initialized. Please check your Firebase configuration.');
+  }
+  return firestore;
+};
 
 interface TeamStanding {
   id: string;
@@ -47,7 +55,7 @@ interface TeamStanding {
   goalsAgainst: number;
   goalDifference: number;
   points: number;
-  form: string[]; // Last 5 results: 'W', 'D', 'L'
+  form: string[];
   season: string;
   updatedAt?: any;
 }
@@ -60,60 +68,102 @@ export default function AdminTeamStandingsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLeague, setSelectedLeague] = useState('all');
   const [selectedSeason, setSelectedSeason] = useState('2024-25');
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 
-  // Check admin permission
+  // Auth check pattern
   useEffect(() => {
-    if (!authLoading && !isAdmin) {
-      Alert.alert('Access Denied', 'You must be an admin to access team standings');
-      router.back();
-      return;
-    }
-  }, [isAdmin, authLoading]);
-
-  // Fetch team standings
-  const fetchStandings = async () => {
-    if (!isAdmin || !firestore) return;
-    
-    try {
-      console.log('Fetching team standings for season:', selectedSeason);
+    if (!authLoading) {
+      console.log('Admin Team Standings - Auth Check:', {
+        user: user?.email,
+        isAdmin,
+        authLoading
+      });
       
-      let standingsQuery;
-      if (selectedLeague === 'all') {
-        standingsQuery = query(
-          collection(firestore, 'standings'),
-          where('season', '==', selectedSeason),
-          orderBy('points', 'desc'),
-          orderBy('goalDifference', 'desc')
-        );
-      } else {
-        standingsQuery = query(
-          collection(firestore, 'standings'),
-          where('season', '==', selectedSeason),
-          where('leagueId', '==', selectedLeague),
-          orderBy('points', 'desc'),
-          orderBy('goalDifference', 'desc')
-        );
+      if (!user) {
+        Alert.alert('Authentication Required', 'Please log in to access this page');
+        router.replace('/(auth)/login');
+        return;
       }
       
-      const snapshot = await getDocs(standingsQuery);
-      const standingsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as TeamStanding[];
+      if (isAdmin === false) {
+        Alert.alert('Access Denied', 'You must be an admin to access team standings');
+        router.back();
+        return;
+      }
       
-      console.log('Fetched team standings:', standingsData.length);
+      if (isAdmin === true) {
+        setHasCheckedAuth(true);
+        fetchStandings();
+      }
+    }
+  }, [authLoading, user, isAdmin]);
+
+  // Fixed Firebase fetch - looking for 'leagueStandings' collection
+  const fetchStandings = async () => {
+    try {
+      console.log('Fetching team standings from leagueStandings collection...');
+      
+      const db = getFirestore();
+      
+      // Query the correct collection: 'leagueStandings'
+      const standingsQuery = query(
+        collection(db, 'leagueStandings'),
+        orderBy('points', 'desc')
+      );
+      
+      const snapshot = await getDocs(standingsQuery);
+      console.log('Raw standings documents:', snapshot.docs.length);
+      
+      if (snapshot.empty) {
+        console.log('No documents found in leagueStandings collection');
+        setStandings([]);
+        setLoading(false);
+        return;
+      }
+      
+      const standingsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('Document data:', data);
+        
+        return {
+          id: doc.id,
+          teamId: data.teamId || doc.id,
+          teamName: data.teamName || data.team || 'Unknown Team',
+          leagueId: data.leagueId || data.league || 'unknown',
+          leagueName: data.leagueName || data.league || 'Unknown League',
+          position: data.position || 0,
+          played: data.played || data.matches || 0,
+          won: data.won || data.wins || 0,
+          drawn: data.drawn || data.draws || 0,
+          lost: data.lost || data.losses || 0,
+          goalsFor: data.goalsFor || data.gf || 0,
+          goalsAgainst: data.goalsAgainst || data.ga || 0,
+          goalDifference: data.goalDifference || data.gd || (data.goalsFor || 0) - (data.goalsAgainst || 0),
+          points: data.points || 0,
+          form: data.form || data.recentForm || [],
+          season: data.season || selectedSeason,
+          updatedAt: data.updatedAt
+        };
+      }) as TeamStanding[];
+      
+      // Sort by points descending, then by goal difference
+      standingsData.sort((a, b) => {
+        if (b.points !== a.points) {
+          return b.points - a.points;
+        }
+        return b.goalDifference - a.goalDifference;
+      });
+      
+      console.log('Processed standings data:', standingsData.length);
       setStandings(standingsData);
     } catch (error) {
       console.error('Error fetching team standings:', error);
-      Alert.alert('Error', 'Failed to load team standings');
+      Alert.alert('Error', 'Failed to load team standings. Please check your connection and try again.');
+      setStandings([]);
+    } finally {
+      setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (isAdmin && !authLoading) {
-      fetchStandings().finally(() => setLoading(false));
-    }
-  }, [isAdmin, authLoading, selectedSeason, selectedLeague]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -122,21 +172,7 @@ export default function AdminTeamStandingsScreen() {
   };
 
   const handleUpdateStanding = async (teamId: string, updates: Partial<TeamStanding>) => {
-    if (!firestore) return;
-    
-    try {
-      const standingRef = doc(firestore, 'standings', teamId);
-      await updateDoc(standingRef, {
-        ...updates,
-        updatedAt: new Date()
-      });
-      
-      Alert.alert('Success', 'Team standing updated successfully');
-      await fetchStandings();
-    } catch (error) {
-      console.error('Error updating team standing:', error);
-      Alert.alert('Error', 'Failed to update team standing');
-    }
+    Alert.alert('Coming Soon', 'Team standing updates will be implemented soon.');
   };
 
   const handleAddResult = (team: TeamStanding) => {
@@ -146,41 +182,15 @@ export default function AdminTeamStandingsScreen() {
       [
         {
           text: 'Win',
-          onPress: () => {
-            const updatedTeam = {
-              ...team,
-              played: team.played + 1,
-              won: team.won + 1,
-              points: team.points + 3,
-              form: [...team.form.slice(-4), 'W']
-            };
-            handleUpdateStanding(team.id, updatedTeam);
-          }
+          onPress: () => Alert.alert('Coming Soon', 'Result updates will be implemented soon.')
         },
         {
           text: 'Draw',
-          onPress: () => {
-            const updatedTeam = {
-              ...team,
-              played: team.played + 1,
-              drawn: team.drawn + 1,
-              points: team.points + 1,
-              form: [...team.form.slice(-4), 'D']
-            };
-            handleUpdateStanding(team.id, updatedTeam);
-          }
+          onPress: () => Alert.alert('Coming Soon', 'Result updates will be implemented soon.')
         },
         {
           text: 'Loss',
-          onPress: () => {
-            const updatedTeam = {
-              ...team,
-              played: team.played + 1,
-              lost: team.lost + 1,
-              form: [...team.form.slice(-4), 'L']
-            };
-            handleUpdateStanding(team.id, updatedTeam);
-          }
+          onPress: () => Alert.alert('Coming Soon', 'Result updates will be implemented soon.')
         },
         { text: 'Cancel', style: 'cancel' }
       ]
@@ -196,10 +206,12 @@ export default function AdminTeamStandingsScreen() {
     }
   };
 
-  const filteredStandings = standings.filter(team =>
-    team.teamName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    team.leagueName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredStandings = standings.filter(team => {
+    const matchesSearch = team.teamName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         team.leagueName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesLeague = selectedLeague === 'all' || team.leagueId === selectedLeague;
+    return matchesSearch && matchesLeague;
+  });
 
   const renderStandingItem = ({ item, index }: { item: TeamStanding; index: number }) => (
     <Card style={styles.standingCard}>
@@ -269,7 +281,8 @@ export default function AdminTeamStandingsScreen() {
     </Card>
   );
 
-  if (authLoading || (loading && isAdmin)) {
+  // Loading state
+  if (authLoading || (!hasCheckedAuth && isAdmin !== false)) {
     return (
       <LinearGradient
         colors={['#0047AB', '#191970', '#041E42']}
@@ -286,7 +299,8 @@ export default function AdminTeamStandingsScreen() {
     );
   }
 
-  if (!isAdmin) {
+  // Auth check
+  if (!isAdmin || !hasCheckedAuth) {
     return null;
   }
 
@@ -300,110 +314,8 @@ export default function AdminTeamStandingsScreen() {
       <SafeAreaView style={styles.safeArea}>
         <Header title="Team Standings" showBack={true} />
         
-        {/* Header Section */}
-        <View style={styles.headerSection}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.titleText}>League Standings</Text>
-            <Text style={styles.subtitleText}>Season {selectedSeason}</Text>
-          </View>
-          <View style={styles.updateButtonContainer}>
-            <TouchableOpacity 
-              style={styles.updateButtonIcon} 
-              onPress={() => Alert.alert('Coming Soon', 'Bulk update functionality will be implemented soon.')}
-            >
-              <Feather name="refresh-cw" size={20} color="white" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Search and Filters */}
-        <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
-            <Feather name="search" size={20} color="#6b7280" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search teams or leagues..."
-              placeholderTextColor="#9ca3af"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-        </View>
-
-        {/* League Filter */}
         <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterScroll}
-          contentContainerStyle={styles.filterContainer}
-        >
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              selectedLeague === 'all' && styles.activeFilterButton
-            ]}
-            onPress={() => setSelectedLeague('all')}
-          >
-            <Text style={[
-              styles.filterText,
-              selectedLeague === 'all' && styles.activeFilterText
-            ]}>
-              All Leagues
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              selectedLeague === 'premier' && styles.activeFilterButton
-            ]}
-            onPress={() => setSelectedLeague('premier')}
-          >
-            <Text style={[
-              styles.filterText,
-              selectedLeague === 'premier' && styles.activeFilterText
-            ]}>
-              Premier Division
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              selectedLeague === 'first' && styles.activeFilterButton
-            ]}
-            onPress={() => setSelectedLeague('first')}
-          >
-            <Text style={[
-              styles.filterText,
-              selectedLeague === 'first' && styles.activeFilterText
-            ]}>
-              First Division
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-
-        {/* Standings Table Header */}
-        <Card style={styles.tableHeader}>
-          <View style={styles.headerRow}>
-            <Text style={styles.headerText}>Pos</Text>
-            <Text style={[styles.headerText, styles.teamHeader]}>Team</Text>
-            <Text style={styles.headerText}>P</Text>
-            <Text style={styles.headerText}>W</Text>
-            <Text style={styles.headerText}>D</Text>
-            <Text style={styles.headerText}>L</Text>
-            <Text style={styles.headerText}>GD</Text>
-            <Text style={styles.headerText}>Pts</Text>
-            <Text style={styles.headerText}>Form</Text>
-            <Text style={styles.headerText}>Action</Text>
-          </View>
-        </Card>
-
-        {/* Standings List */}
-        <FlatList
-          data={filteredStandings}
-          renderItem={renderStandingItem}
-          keyExtractor={(item) => item.id}
-          style={styles.standingsList}
-          contentContainerStyle={styles.standingsListContent}
+          style={styles.content}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -411,18 +323,118 @@ export default function AdminTeamStandingsScreen() {
               tintColor="#2563eb"
             />
           }
-          ListEmptyComponent={
+        >
+          {/* Header Section */}
+          <View style={styles.headerSection}>
+            <Text style={styles.titleText}>League Standings ({filteredStandings.length})</Text>
+            <TouchableOpacity 
+              style={styles.updateButton}
+              onPress={() => Alert.alert('Coming Soon', 'Bulk update functionality will be implemented soon.')}
+            >
+              <Feather name="refresh-cw" size={16} color="white" />
+              <Text style={styles.updateButtonText}>Update</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <View style={styles.searchBar}>
+              <Feather name="search" size={20} color="#6b7280" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search teams or leagues..."
+                placeholderTextColor="#9ca3af"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+          </View>
+
+          {/* League Filter */}
+          <View style={styles.filterContainer}>
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                selectedLeague === 'all' && styles.activeFilterButton
+              ]}
+              onPress={() => setSelectedLeague('all')}
+            >
+              <Text style={[
+                styles.filterText,
+                selectedLeague === 'all' && styles.activeFilterText
+              ]}>
+                All Leagues
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                selectedLeague === 'premier' && styles.activeFilterButton
+              ]}
+              onPress={() => setSelectedLeague('premier')}
+            >
+              <Text style={[
+                styles.filterText,
+                selectedLeague === 'premier' && styles.activeFilterText
+              ]}>
+                Premier Division
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                selectedLeague === 'first' && styles.activeFilterButton
+              ]}
+              onPress={() => setSelectedLeague('first')}
+            >
+              <Text style={[
+                styles.filterText,
+                selectedLeague === 'first' && styles.activeFilterText
+              ]}>
+                First Division
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Standings Table Header */}
+          <Card style={styles.tableHeader}>
+            <View style={styles.headerRow}>
+              <Text style={styles.headerText}>Pos</Text>
+              <Text style={[styles.headerText, styles.teamHeader]}>Team</Text>
+              <Text style={styles.headerText}>P</Text>
+              <Text style={styles.headerText}>W</Text>
+              <Text style={styles.headerText}>D</Text>
+              <Text style={styles.headerText}>L</Text>
+              <Text style={styles.headerText}>GD</Text>
+              <Text style={styles.headerText}>Pts</Text>
+              <Text style={styles.headerText}>Form</Text>
+              <Text style={styles.headerText}>Action</Text>
+            </View>
+          </Card>
+
+          {/* Standings List */}
+          {filteredStandings.length === 0 ? (
             <Card style={styles.emptyCard}>
               <View style={styles.emptyContainer}>
                 <Feather name="award" size={48} color="#9ca3af" />
                 <Text style={styles.emptyText}>No standings found</Text>
                 <Text style={styles.emptySubtext}>
-                  No team standings available for the selected criteria
+                  {loading ? 'Loading standings...' : 'No team standings available for the selected criteria'}
                 </Text>
               </View>
             </Card>
-          }
-        />
+          ) : (
+            <FlatList
+              data={filteredStandings}
+              renderItem={renderStandingItem}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+              contentContainerStyle={styles.standingsListContent}
+            />
+          )}
+        </ScrollView>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -435,60 +447,66 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  content: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   loadingText: {
     color: 'white',
     fontSize: 16,
-    marginTop: 10,
+    marginTop: 12,
   },
   headerSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  titleContainer: {
-    flex: 1,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    backgroundColor: 'white',
   },
   titleText: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
+    color: '#1f2937',
   },
-  subtitleText: {
-    fontSize: 14,
-    color: '#93c5fd',
-    marginTop: 4,
-  },
-  updateButtonContainer: {
-    marginLeft: 16,
-  },
-  updateButtonIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
+  updateButton: {
+    backgroundColor: '#2563eb',
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  updateButtonText: {
+    color: 'white',
+    fontWeight: '500',
+    marginLeft: 4,
+    fontSize: 14,
   },
   searchContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    padding: 16,
+    backgroundColor: 'white',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: '#f9fafb',
     borderRadius: 8,
     paddingHorizontal: 12,
     height: 48,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   searchInput: {
     flex: 1,
@@ -496,35 +514,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
   },
-  filterScroll: {
-    marginBottom: 16,
-  },
   filterContainer: {
+    flexDirection: 'row',
     paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
   filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     marginRight: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: '#e5e7eb',
   },
   activeFilterButton: {
-    backgroundColor: 'white',
-    borderColor: 'white',
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
   },
   filterText: {
-    color: 'white',
-    fontSize: 14,
+    color: '#6b7280',
+    fontSize: 13,
     fontWeight: '500',
   },
   activeFilterText: {
-    color: '#2563eb',
+    color: 'white',
   },
   tableHeader: {
     marginHorizontal: 16,
+    marginTop: 8,
     marginBottom: 8,
     padding: 12,
     backgroundColor: '#f3f4f6',
@@ -544,9 +565,6 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'left',
     marginLeft: 8,
-  },
-  standingsList: {
-    flex: 1,
   },
   standingsListContent: {
     paddingHorizontal: 16,
@@ -633,7 +651,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   emptyCard: {
-    marginTop: 40,
+    margin: 16,
     padding: 32,
   },
   emptyContainer: {
