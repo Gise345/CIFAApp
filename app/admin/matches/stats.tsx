@@ -852,6 +852,7 @@ const safeNumber = (value: any, fallback: number = 0): number => {
   );
 }
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -880,7 +881,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   loadingSection: {
-    padding: 60,
+    padding: 40,
     alignItems: 'center',
   },
   loadingSectionText: {
@@ -894,28 +895,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     margin: 20,
   },
+  
+  // COMPACT HEADER SECTION - Reduced padding
   headerSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 12, // Reduced from 20 to 12
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
   titleText: {
-    fontSize: 24,
+    fontSize: 20, // Reduced from 24 to 20
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 4,
+    marginBottom: 2, // Reduced from 4 to 2
   },
   subtitleText: {
-    fontSize: 14,
+    fontSize: 12, // Reduced from 14 to 12
     color: '#6b7280',
   },
   addButton: {
-    borderRadius: 12,
+    borderRadius: 10, // Reduced from 12 to 10
     overflow: 'hidden',
     elevation: 3,
     shadowColor: '#000',
@@ -926,18 +929,20 @@ const styles = StyleSheet.create({
   addButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12, // Reduced from 16 to 12
+    paddingVertical: 8, // Reduced from 12 to 8
   },
   addButtonText: {
     color: 'white',
     fontWeight: '600',
-    marginLeft: 6,
-    fontSize: 15,
+    marginLeft: 4, // Reduced from 6 to 4
+    fontSize: 13, // Reduced from 15 to 13
   },
+  
+  // COMPACT FILTERS SECTION - Reduced padding
   filtersContainer: {
     backgroundColor: 'white',
-    paddingBottom: 16,
+    paddingBottom: 12, // Reduced from 16 to 12
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
@@ -945,32 +950,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f3f4f6',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 48,
+    borderRadius: 10, // Reduced from 12 to 10
+    paddingHorizontal: 14, // Reduced from 16 to 14
+    height: 40, // Reduced from 48 to 40
     marginHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 12,
+    marginTop: 12, // Reduced from 16 to 12
+    marginBottom: 8, // Reduced from 12 to 8
   },
   searchInput: {
     flex: 1,
-    marginLeft: 12,
-    fontSize: 16,
+    marginLeft: 10, // Reduced from 12 to 10
+    fontSize: 14, // Reduced from 16 to 14
     color: '#111827',
   },
   filterScroll: {
-    marginTop: 8,
+    marginTop: 4, // Reduced from 8 to 4
   },
   filterContainer: {
     paddingHorizontal: 20,
-    gap: 8,
+    gap: 6, // Reduced from 8 to 6
   },
   filterButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginRight: 8,
+    paddingHorizontal: 16, // Reduced from 20 to 16
+    paddingVertical: 6, // Reduced from 10 to 6
+    marginRight: 6, // Reduced from 8 to 6
     backgroundColor: '#f3f4f6',
-    borderRadius: 24,
+    borderRadius: 20, // Reduced from 24 to 20
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
@@ -980,20 +985,22 @@ const styles = StyleSheet.create({
   },
   filterText: {
     color: '#6b7280',
-    fontSize: 14,
+    fontSize: 12, // Reduced from 14 to 12
     fontWeight: '600',
   },
   activeFilterText: {
     color: '#3b82f6',
   },
+  
+  // ULTRA COMPACT SUMMARY SECTION - Horizontal scrollable cards
   summaryContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16, // Reduced from 20 to 16
+    paddingVertical: 8, // Reduced from 16 to 8
   },
   summaryCard: {
-    borderRadius: 16,
-    padding: 20,
-    elevation: 2,
+    borderRadius: 12, // Reduced from 16 to 12
+    padding: 12, // Reduced from 20 to 12
+    elevation: 1, // Reduced from 2 to 1
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -1005,36 +1012,42 @@ const styles = StyleSheet.create({
   },
   summaryItem: {
     alignItems: 'center',
+    flex: 1,
   },
   summaryIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 36, // Reduced from 48 to 36
+    height: 36, // Reduced from 48 to 36
+    borderRadius: 8, // Reduced from 12 to 8
     backgroundColor: '#dbeafe',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6, // Reduced from 8 to 6
   },
   summaryValue: {
-    fontSize: 24,
+    fontSize: 18, // Reduced from 24 to 18
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 4,
+    marginBottom: 2, // Reduced from 4 to 2
   },
   summaryLabel: {
-    fontSize: 12,
+    fontSize: 10, // Reduced from 12 to 10
     color: '#6b7280',
     fontWeight: '500',
+    textAlign: 'center',
   },
+  
+  // OPTIMIZED MATCH LIST - Maximized space
   matchesList: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingHorizontal: 16, // Reduced from 20 to 16
+    paddingTop: 8, // Reduced from 16 to 8
     paddingBottom: 100,
   },
+  
+  // COMPACT MATCH CARDS
   matchCard: {
-    marginBottom: 16,
+    marginBottom: 12, // Reduced from 16 to 12
     padding: 0,
-    borderRadius: 16,
+    borderRadius: 12, // Reduced from 16 to 12
     backgroundColor: 'white',
     elevation: 2,
     shadowColor: '#000',
@@ -1051,57 +1064,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingHorizontal: 14, // Reduced from 16 to 14
+    paddingTop: 12, // Reduced from 16 to 12
+    paddingBottom: 8, // Reduced from 12 to 8
   },
   statusBadgeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   editButton: {
-    padding: 8,
-    borderRadius: 8,
+    padding: 6, // Reduced from 8 to 6
+    borderRadius: 6, // Reduced from 8 to 6
     backgroundColor: '#eff6ff',
   },
   matchInfoSection: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingHorizontal: 14, // Reduced from 16 to 14
+    marginBottom: 10, // Reduced from 16 to 10
   },
   dateVenueContainer: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 6,
+    gap: 12, // Reduced from 16 to 12
+    marginBottom: 4, // Reduced from 6 to 4
   },
   dateIconContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4, // Reduced from 6 to 4
   },
   venueIconContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4, // Reduced from 6 to 4
   },
   dateText: {
-    fontSize: 12,
+    fontSize: 11, // Reduced from 12 to 11
     color: '#6b7280',
   },
   venueText: {
-    fontSize: 12,
+    fontSize: 11, // Reduced from 12 to 11
     color: '#6b7280',
   },
   leagueText: {
-    fontSize: 13,
+    fontSize: 11, // Reduced from 13 to 11
     color: '#9ca3af',
     fontWeight: '500',
   },
+  
+  // COMPACT TEAMS AND SCORE
   mainMatchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingHorizontal: 14, // Reduced from 16 to 14
+    paddingBottom: 14, // Reduced from 20 to 14
   },
   teamContainer: {
     flex: 1,
@@ -1109,87 +1124,90 @@ const styles = StyleSheet.create({
     maxWidth: 100,
   },
   teamLogoPlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50, // Reduced from 60 to 50
+    height: 50, // Reduced from 60 to 50
+    borderRadius: 25, // Reduced from 30 to 25
     backgroundColor: '#f3f4f6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6, // Reduced from 8 to 6
     borderWidth: 2,
     borderColor: '#e5e7eb',
   },
   teamInitial: {
-    fontSize: 24,
+    fontSize: 20, // Reduced from 24 to 20
     fontWeight: '700',
     color: '#6b7280',
   },
   teamName: {
-    fontSize: 14,
+    fontSize: 12, // Reduced from 14 to 12
     fontWeight: '600',
     color: '#111827',
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 16, // Reduced from 18 to 16
   },
   scoreContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16, // Reduced from 20 to 16
   },
   score: {
-    fontSize: 36,
+    fontSize: 28, // Reduced from 36 to 28
     fontWeight: '700',
     color: '#111827',
-    minWidth: 50,
+    minWidth: 40, // Reduced from 50 to 40
     textAlign: 'center',
   },
   liveScore: {
     color: '#f59e0b',
   },
   scoreDivider: {
-    fontSize: 24,
+    fontSize: 20, // Reduced from 24 to 20
     color: '#d1d5db',
-    marginHorizontal: 8,
+    marginHorizontal: 6, // Reduced from 8 to 6
   },
+  
+  // COMPACT STATISTICS SECTION
   statsSection: {
     backgroundColor: '#f9fafb',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 12, // Reduced from 16 to 12
+    paddingHorizontal: 14, // Reduced from 16 to 14
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
   },
   statsSectionTitle: {
-    fontSize: 12,
+    fontSize: 10, // Reduced from 12 to 10
     fontWeight: '700',
     color: '#6b7280',
     letterSpacing: 0.5,
-    marginBottom: 16,
+    marginBottom: 10, // Reduced from 16 to 10
+    textAlign: 'center',
   },
   statsGrid: {
-    gap: 12,
+    gap: 8, // Reduced from 12 to 8
   },
   possessionContainer: {
-    marginBottom: 8,
+    marginBottom: 6, // Reduced from 8 to 6
   },
   possessionLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6, // Reduced from 8 to 6
   },
   possessionValue: {
-    fontSize: 14,
+    fontSize: 12, // Reduced from 14 to 12
     fontWeight: '600',
     color: '#111827',
   },
   possessionLabel: {
-    fontSize: 12,
+    fontSize: 10, // Reduced from 12 to 10
     color: '#6b7280',
     fontWeight: '500',
   },
   possessionBar: {
-    height: 8,
+    height: 6, // Reduced from 8 to 6
     backgroundColor: '#e5e7eb',
-    borderRadius: 4,
+    borderRadius: 3, // Reduced from 4 to 3
     flexDirection: 'row',
     overflow: 'hidden',
   },
@@ -1205,58 +1223,61 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 6, // Reduced from 10 to 6
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 14, // Reduced from 16 to 14
     fontWeight: '600',
     color: '#111827',
-    minWidth: 40,
+    minWidth: 32, // Reduced from 40 to 32
     textAlign: 'center',
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: 11, // Reduced from 13 to 11
     color: '#6b7280',
     fontWeight: '500',
     flex: 1,
     textAlign: 'center',
   },
+  
+  // COMPACT EVENTS SECTION
   eventsSection: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 12, // Reduced from 16 to 12
+    paddingHorizontal: 14, // Reduced from 16 to 14
     backgroundColor: '#fefefe',
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
   },
   eventsSectionTitle: {
-    fontSize: 12,
+    fontSize: 10, // Reduced from 12 to 10
     fontWeight: '700',
     color: '#6b7280',
     letterSpacing: 0.5,
-    marginBottom: 16,
+    marginBottom: 10, // Reduced from 16 to 10
+    textAlign: 'center',
   },
   eventsContainer: {
-    gap: 12,
+    gap: 8, // Reduced from 12 to 8
   },
   eventItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8, // Reduced from 12 to 8
   },
   eventTimeContainer: {
-    minWidth: 40,
+    minWidth: 32, // Reduced from 40 to 32
   },
   eventMinute: {
-    fontSize: 14,
+    fontSize: 12, // Reduced from 14 to 12
     fontWeight: '600',
     color: '#3b82f6',
   },
   eventIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 28, // Reduced from 36 to 28
+    height: 28, // Reduced from 36 to 28
+    borderRadius: 14, // Reduced from 18 to 14
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1264,84 +1285,90 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   eventPlayer: {
-    fontSize: 14,
+    fontSize: 12, // Reduced from 14 to 12
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 2,
+    marginBottom: 1, // Reduced from 2 to 1
   },
   eventDescription: {
-    fontSize: 12,
+    fontSize: 10, // Reduced from 12 to 10
     color: '#6b7280',
     textTransform: 'capitalize',
   },
+  
+  // COMPACT ADDITIONAL INFO
   additionalInfo: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 8, // Reduced from 12 to 8
+    paddingHorizontal: 14, // Reduced from 16 to 14
     backgroundColor: '#f9fafb',
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
     flexDirection: 'row',
-    gap: 20,
+    gap: 16, // Reduced from 20 to 16
   },
   infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4, // Reduced from 6 to 4
   },
   infoText: {
-    fontSize: 12,
+    fontSize: 10, // Reduced from 12 to 10
     color: '#6b7280',
   },
+  
+  // OPTIMIZED EMPTY STATE
   emptyCard: {
-    margin: 20,
-    padding: 40,
+    margin: 16, // Reduced from 20 to 16
+    padding: 30, // Reduced from 40 to 30
   },
   emptyContainer: {
     alignItems: 'center',
   },
   emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 64, // Reduced from 80 to 64
+    height: 64, // Reduced from 80 to 64
+    borderRadius: 32, // Reduced from 40 to 32
     backgroundColor: '#f3f4f6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16, // Reduced from 20 to 16
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 16, // Reduced from 18 to 16
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: 6, // Reduced from 8 to 6
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: 13, // Reduced from 14 to 13
     color: '#6b7280',
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
+    lineHeight: 18, // Reduced from 20 to 18
+    marginBottom: 20, // Reduced from 24 to 20
   },
   emptyButton: {
-    borderRadius: 12,
+    borderRadius: 10, // Reduced from 12 to 10
     overflow: 'hidden',
   },
   emptyButtonGradient: {
-    paddingHorizontal: 24,
-    paddingVertical: 14,
+    paddingHorizontal: 20, // Reduced from 24 to 20
+    paddingVertical: 12, // Reduced from 14 to 12
   },
   emptyButtonText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 14, // Reduced from 16 to 14
   },
-errorContainer: {
-  padding: 20,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-errorTextRed: {
-  fontSize: 14,
-  color: '#ef4444',
-  textAlign: 'center',
-},
+  
+  // ERROR HANDLING
+  errorContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorTextRed: {
+    fontSize: 14,
+    color: '#ef4444',
+    textAlign: 'center',
+  },
 });
