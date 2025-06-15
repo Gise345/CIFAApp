@@ -16,13 +16,7 @@ export default function MoreScreen() {
 
   // Track admin status changes
   useEffect(() => {
-    console.log('More Screen - Auth State:', {
-      user: user?.email,
-      isAdmin,
-      loading,
-      previousAdminStatus: adminStatus
-    });
-    
+        
     // Only update admin status after loading is complete
     if (!loading && isAdmin !== null) {
       setAdminStatus(isAdmin);
@@ -31,10 +25,8 @@ export default function MoreScreen() {
 
   const safeNavigate = (route: string) => {
     try {
-      console.log('Navigating to:', route);
       router.push(route as any);
     } catch (error) {
-      console.error('Navigation error:', error);
       Alert.alert('Navigation Error', 'Could not navigate to the requested page.');
     }
   };
@@ -70,13 +62,7 @@ export default function MoreScreen() {
   };
 
   const handleAdminPortal = () => {
-    console.log('Admin portal clicked - Current state:', {
-      user: user?.email,
-      isAdmin,
-      adminStatus,
-      loading
-    });
-    
+    // Ensure user is logged in before checking admin status    
     if (!user) {
       Alert.alert('Login Required', 'Please log in first.');
       handleSignIn();
@@ -95,7 +81,6 @@ export default function MoreScreen() {
     }
     
     // If we've confirmed admin status, navigate
-    console.log('Navigating to admin portal - confirmed admin status');
     try {
       router.push('/admin/' as any);
     } catch (error) {

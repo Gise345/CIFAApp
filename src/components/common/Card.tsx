@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 
 interface CardProps {
   children: ReactNode;
@@ -27,9 +27,16 @@ const Card: React.FC<CardProps> = ({
     }
   };
 
+  const renderContent = () => {
+    if (typeof children === 'string' || typeof children === 'number') {
+      return <Text>{children}</Text>;
+    }
+    return children;
+  };
+
   return (
     <View style={[styles.card, getPaddingStyle(), style]}>
-      {children}
+      {renderContent()}
     </View>
   );
 };

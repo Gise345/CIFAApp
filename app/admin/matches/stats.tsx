@@ -1,5 +1,5 @@
-// app/admin/matches/stats.tsx - Complete Match Statistics with Add Modal
-import React, { useState, useEffect } from 'react';
+// app/admin/matches/stats.tsx - COMPLETELY FIXED VERSION
+import React, { useState, useEffect, useRef  } from 'react';
 import { 
   View, 
   Text, 
@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   TextInput,
   FlatList,
-  Modal
+  Animated
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -87,463 +87,6 @@ interface MatchEvent {
   description: string;
 }
 
-interface MatchStatsForm {
-  homeTeam: string;
-  awayTeam: string;
-  homeScore: string;
-  awayScore: string;
-  venue: string;
-  league: string;
-  season: string;
-  referee: string;
-  attendance: string;
-  homeStats: {
-    possession: string;
-    shots: string;
-    shotsOnTarget: string;
-    corners: string;
-    fouls: string;
-    yellowCards: string;
-    redCards: string;
-    passes: string;
-    passAccuracy: string;
-    offsides: string;
-  };
-  awayStats: {
-    possession: string;
-    shots: string;
-    shotsOnTarget: string;
-    corners: string;
-    fouls: string;
-    yellowCards: string;
-    redCards: string;
-    passes: string;
-    passAccuracy: string;
-    offsides: string;
-  };
-}
-
-// Add Match Stats Modal Component
-const AddMatchStatsModal = ({ visible, onClose, onSave }: {
-  visible: boolean;
-  onClose: () => void;
-  onSave: () => void;
-}) => {
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<MatchStatsForm>({
-    homeTeam: '',
-    awayTeam: '',
-    homeScore: '',
-    awayScore: '',
-    venue: '',
-    league: 'Premier Division',
-    season: '2024-25',
-    referee: '',
-    attendance: '',
-    homeStats: {
-      possession: '50',
-      shots: '0',
-      shotsOnTarget: '0',
-      corners: '0',
-      fouls: '0',
-      yellowCards: '0',
-      redCards: '0',
-      passes: '0',
-      passAccuracy: '0',
-      offsides: '0'
-    },
-    awayStats: {
-      possession: '50',
-      shots: '0',
-      shotsOnTarget: '0',
-      corners: '0',
-      fouls: '0',
-      yellowCards: '0',
-      redCards: '0',
-      passes: '0',
-      passAccuracy: '0',
-      offsides: '0'
-    }
-  });
-
-  const handleSave = async () => {
-    if (!formData.homeTeam || !formData.awayTeam) {
-      Alert.alert('Error', 'Please enter both team names');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const db = getFirestore();
-      const matchData = {
-        homeTeam: formData.homeTeam,
-        awayTeam: formData.awayTeam,
-        homeScore: parseInt(formData.homeScore) || 0,
-        awayScore: parseInt(formData.awayScore) || 0,
-        venue: formData.venue,
-        league: formData.league,
-        season: formData.season,
-        referee: formData.referee,
-        attendance: parseInt(formData.attendance) || 0,
-        status: 'completed',
-        date: Timestamp.now(),
-        homeStats: {
-          possession: parseInt(formData.homeStats.possession) || 0,
-          shots: parseInt(formData.homeStats.shots) || 0,
-          shotsOnTarget: parseInt(formData.homeStats.shotsOnTarget) || 0,
-          corners: parseInt(formData.homeStats.corners) || 0,
-          fouls: parseInt(formData.homeStats.fouls) || 0,
-          yellowCards: parseInt(formData.homeStats.yellowCards) || 0,
-          redCards: parseInt(formData.homeStats.redCards) || 0,
-          passes: parseInt(formData.homeStats.passes) || 0,
-          passAccuracy: parseInt(formData.homeStats.passAccuracy) || 0,
-          offsides: parseInt(formData.homeStats.offsides) || 0
-        },
-        awayStats: {
-          possession: parseInt(formData.awayStats.possession) || 0,
-          shots: parseInt(formData.awayStats.shots) || 0,
-          shotsOnTarget: parseInt(formData.awayStats.shotsOnTarget) || 0,
-          corners: parseInt(formData.awayStats.corners) || 0,
-          fouls: parseInt(formData.awayStats.fouls) || 0,
-          yellowCards: parseInt(formData.awayStats.yellowCards) || 0,
-          redCards: parseInt(formData.awayStats.redCards) || 0,
-          passes: parseInt(formData.awayStats.passes) || 0,
-          passAccuracy: parseInt(formData.awayStats.passAccuracy) || 0,
-          offsides: parseInt(formData.awayStats.offsides) || 0
-        },
-        events: [],
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      };
-
-      await addDoc(collection(db, 'matches'), matchData);
-      
-      Alert.alert('Success', 'Match statistics added successfully!');
-      onSave();
-      onClose();
-      
-      // Reset form
-      setFormData({
-        homeTeam: '',
-        awayTeam: '',
-        homeScore: '',
-        awayScore: '',
-        venue: '',
-        league: 'Premier Division',
-        season: '2024-25',
-        referee: '',
-        attendance: '',
-        homeStats: {
-          possession: '50', shots: '0', shotsOnTarget: '0', corners: '0',
-          fouls: '0', yellowCards: '0', redCards: '0', passes: '0',
-          passAccuracy: '0', offsides: '0'
-        },
-        awayStats: {
-          possession: '50', shots: '0', shotsOnTarget: '0', corners: '0',
-          fouls: '0', yellowCards: '0', redCards: '0', passes: '0',
-          passAccuracy: '0', offsides: '0'
-        }
-      });
-
-    } catch (error) {
-      console.error('Error adding match stats:', error);
-      Alert.alert('Error', 'Failed to add match statistics');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateFormField = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const updateStatsField = (team: 'homeStats' | 'awayStats', field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [team]: { ...prev[team], [field]: value }
-    }));
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-      <LinearGradient
-        colors={['#0047AB', '#191970', '#041E42']}
-        style={styles.modalContainer}
-      >
-        <SafeAreaView style={styles.modalSafeArea}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Feather name="x" size={24} color="white" />
-            </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>Add Match Statistics</Text>
-            <TouchableOpacity 
-              onPress={handleSave} 
-              disabled={loading}
-              style={[styles.saveButton, loading && styles.disabledButton]}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text style={styles.saveButtonText}>Save</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            {/* Basic Match Info */}
-            <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>Match Information</Text>
-              
-              <View style={styles.teamsRow}>
-                <View style={styles.teamInput}>
-                  <Text style={styles.label}>Home Team</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.homeTeam}
-                    onChangeText={(value) => updateFormField('homeTeam', value)}
-                    placeholder="Enter home team"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                
-                <View style={styles.scoreContainer}>
-                  <Text style={styles.label}>Score</Text>
-                  <View style={styles.scoreInputs}>
-                    <TextInput
-                      style={styles.scoreInput}
-                      value={formData.homeScore}
-                      onChangeText={(value) => updateFormField('homeScore', value)}
-                      placeholder="0"
-                      placeholderTextColor="#9ca3af"
-                      keyboardType="numeric"
-                    />
-                    <Text style={styles.scoreSeparator}>-</Text>
-                    <TextInput
-                      style={styles.scoreInput}
-                      value={formData.awayScore}
-                      onChangeText={(value) => updateFormField('awayScore', value)}
-                      placeholder="0"
-                      placeholderTextColor="#9ca3af"
-                      keyboardType="numeric"
-                    />
-                  </View>
-                </View>
-                
-                <View style={styles.teamInput}>
-                  <Text style={styles.label}>Away Team</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.awayTeam}
-                    onChangeText={(value) => updateFormField('awayTeam', value)}
-                    placeholder="Enter away team"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.row}>
-                <View style={styles.halfWidth}>
-                  <Text style={styles.label}>Venue</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.venue}
-                    onChangeText={(value) => updateFormField('venue', value)}
-                    placeholder="Stadium name"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                <View style={styles.halfWidth}>
-                  <Text style={styles.label}>League</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.league}
-                    onChangeText={(value) => updateFormField('league', value)}
-                    placeholder="League name"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.row}>
-                <View style={styles.halfWidth}>
-                  <Text style={styles.label}>Referee</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.referee}
-                    onChangeText={(value) => updateFormField('referee', value)}
-                    placeholder="Referee name"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                <View style={styles.halfWidth}>
-                  <Text style={styles.label}>Attendance</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.attendance}
-                    onChangeText={(value) => updateFormField('attendance', value)}
-                    placeholder="0"
-                    placeholderTextColor="#9ca3af"
-                    keyboardType="numeric"
-                  />
-                </View>
-              </View>
-            </Card>
-
-            {/* Home Team Stats */}
-            <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>{formData.homeTeam || 'Home Team'} Statistics</Text>
-              
-              <View style={styles.statsGrid}>
-                <View style={styles.statInput}>
-                  <Text style={styles.label}>Possession %</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.homeStats.possession}
-                    onChangeText={(value) => updateStatsField('homeStats', 'possession', value)}
-                    keyboardType="numeric"
-                    placeholder="50"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                <View style={styles.statInput}>
-                  <Text style={styles.label}>Shots</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.homeStats.shots}
-                    onChangeText={(value) => updateStatsField('homeStats', 'shots', value)}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                <View style={styles.statInput}>
-                  <Text style={styles.label}>Shots on Target</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.homeStats.shotsOnTarget}
-                    onChangeText={(value) => updateStatsField('homeStats', 'shotsOnTarget', value)}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                <View style={styles.statInput}>
-                  <Text style={styles.label}>Corners</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.homeStats.corners}
-                    onChangeText={(value) => updateStatsField('homeStats', 'corners', value)}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                <View style={styles.statInput}>
-                  <Text style={styles.label}>Fouls</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.homeStats.fouls}
-                    onChangeText={(value) => updateStatsField('homeStats', 'fouls', value)}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                <View style={styles.statInput}>
-                  <Text style={styles.label}>Yellow Cards</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.homeStats.yellowCards}
-                    onChangeText={(value) => updateStatsField('homeStats', 'yellowCards', value)}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-              </View>
-            </Card>
-
-            {/* Away Team Stats */}
-            <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>{formData.awayTeam || 'Away Team'} Statistics</Text>
-              
-              <View style={styles.statsGrid}>
-                <View style={styles.statInput}>
-                  <Text style={styles.label}>Possession %</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.awayStats.possession}
-                    onChangeText={(value) => updateStatsField('awayStats', 'possession', value)}
-                    keyboardType="numeric"
-                    placeholder="50"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                <View style={styles.statInput}>
-                  <Text style={styles.label}>Shots</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.awayStats.shots}
-                    onChangeText={(value) => updateStatsField('awayStats', 'shots', value)}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                <View style={styles.statInput}>
-                  <Text style={styles.label}>Shots on Target</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.awayStats.shotsOnTarget}
-                    onChangeText={(value) => updateStatsField('awayStats', 'shotsOnTarget', value)}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                <View style={styles.statInput}>
-                  <Text style={styles.label}>Corners</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.awayStats.corners}
-                    onChangeText={(value) => updateStatsField('awayStats', 'corners', value)}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                <View style={styles.statInput}>
-                  <Text style={styles.label}>Fouls</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.awayStats.fouls}
-                    onChangeText={(value) => updateStatsField('awayStats', 'fouls', value)}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                <View style={styles.statInput}>
-                  <Text style={styles.label}>Yellow Cards</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.awayStats.yellowCards}
-                    onChangeText={(value) => updateStatsField('awayStats', 'yellowCards', value)}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-              </View>
-            </Card>
-          </ScrollView>
-        </SafeAreaView>
-      </LinearGradient>
-    </Modal>
-  );
-};
-
 export default function AdminMatchStatsScreen() {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const [matchStats, setMatchStats] = useState<MatchStats[]>([]);
@@ -554,6 +97,32 @@ export default function AdminMatchStatsScreen() {
   const [selectedLeague, setSelectedLeague] = useState('all');
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  // Helper function to safely convert values to strings
+const safeString = (value: any, fallback: string = ''): string => {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return value.toString();
+  return String(value);
+};
+
+// Helper function to safely convert to number
+const safeNumber = (value: any, fallback: number = 0): number => {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'number') return value;
+  const parsed = parseInt(String(value), 10);
+  return isNaN(parsed) ? fallback : parsed;
+};
+
+  // Animation effect
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   // Auth check pattern
   useEffect(() => {
@@ -586,6 +155,7 @@ export default function AdminMatchStatsScreen() {
   const fetchMatchStats = async () => {
     try {
       console.log('Fetching match statistics...');
+      setLoading(true); // Ensure loading is true during fetch
       
       const db = getFirestore();
       let statsQuery = query(
@@ -602,29 +172,71 @@ export default function AdminMatchStatsScreen() {
       }
       
       const snapshot = await getDocs(statsQuery);
-      const stats = snapshot.docs.map(doc => ({
-        id: doc.id,
-        matchId: doc.id,
-        ...doc.data(),
-        // Ensure stats objects exist
-        homeStats: doc.data().homeStats || {
-          possession: 0, shots: 0, shotsOnTarget: 0, corners: 0,
-          fouls: 0, yellowCards: 0, redCards: 0, passes: 0,
-          passAccuracy: 0, offsides: 0
-        },
-        awayStats: doc.data().awayStats || {
-          possession: 0, shots: 0, shotsOnTarget: 0, corners: 0,
-          fouls: 0, yellowCards: 0, redCards: 0, passes: 0,
-          passAccuracy: 0, offsides: 0
-        },
-        events: doc.data().events || []
-      })) as MatchStats[];
+      console.log('Raw match documents:', snapshot.docs.length);
       
-      console.log('Fetched match stats:', stats.length);
+      if (snapshot.empty) {
+        console.log('No matches found in Firebase');
+        setMatchStats([]);
+        setLoading(false);
+        return;
+      }
+      
+      const stats = snapshot.docs.map(doc => {
+        const data = doc.data();
+        
+        // Use the correct field names based on your Match interface
+        const homeTeamName = data.homeTeamName || data.homeTeam || 'Home Team';
+        const awayTeamName = data.awayTeamName || data.awayTeam || 'Away Team';
+        
+        return {
+          id: doc.id,
+          matchId: doc.id,
+          homeTeam: homeTeamName,
+          awayTeam: awayTeamName,
+          homeScore: Math.max(0, data.homeScore || 0),
+          awayScore: Math.max(0, data.awayScore || 0),
+          status: data.status || 'scheduled',
+          date: data.date || Timestamp.now(),
+          venue: data.venue || 'TBD',
+          attendance: Math.max(0, data.attendance || 0),
+          referee: data.referee || '',
+          league: data.leagueId || 'Unknown League',
+          season: data.season || '2024-25',
+          homeStats: {
+            possession: Math.max(0, Math.min(100, data.homeStats?.possession || 50)),
+            shots: Math.max(0, data.homeStats?.shots || 0),
+            shotsOnTarget: Math.max(0, data.homeStats?.shotsOnTarget || 0),
+            corners: Math.max(0, data.homeStats?.corners || 0),
+            fouls: Math.max(0, data.homeStats?.fouls || 0),
+            yellowCards: Math.max(0, data.homeStats?.yellowCards || 0),
+            redCards: Math.max(0, data.homeStats?.redCards || 0),
+            passes: Math.max(0, data.homeStats?.passes || 0),
+            passAccuracy: Math.max(0, Math.min(100, data.homeStats?.passAccuracy || 0)),
+            offsides: Math.max(0, data.homeStats?.offsides || 0)
+          },
+          awayStats: {
+            possession: Math.max(0, Math.min(100, data.awayStats?.possession || 50)),
+            shots: Math.max(0, data.awayStats?.shots || 0),
+            shotsOnTarget: Math.max(0, data.awayStats?.shotsOnTarget || 0),
+            corners: Math.max(0, data.awayStats?.corners || 0),
+            fouls: Math.max(0, data.awayStats?.fouls || 0),
+            yellowCards: Math.max(0, data.awayStats?.yellowCards || 0),
+            redCards: Math.max(0, data.awayStats?.redCards || 0),
+            passes: Math.max(0, data.awayStats?.passes || 0),
+            passAccuracy: Math.max(0, Math.min(100, data.awayStats?.passAccuracy || 0)),
+            offsides: Math.max(0, data.awayStats?.offsides || 0)
+          },
+          events: Array.isArray(data.events) ? data.events : [],
+          updatedAt: data.updatedAt
+        };
+      }) as MatchStats[];
+      
+      console.log('Processed match stats:', stats.length);
       setMatchStats(stats);
     } catch (error) {
       console.error('Error fetching match stats:', error);
       Alert.alert('Error', 'Failed to load match statistics');
+      setMatchStats([]);
     } finally {
       setLoading(false);
     }
@@ -637,15 +249,127 @@ export default function AdminMatchStatsScreen() {
   };
 
   const handleEditMatch = (matchId: string) => {
-    Alert.alert('Coming Soon', 'Match statistics editing will be implemented soon.');
+    const match = matchStats.find(m => m.id === matchId);
+    if (!match) return;
+    
+    Alert.alert(
+      'Edit Match',
+      `${match.homeTeam} vs ${match.awayTeam}`,
+      [
+        {
+          text: 'Edit Score',
+          onPress: () => promptEditScore(match)
+        },
+        {
+          text: 'Edit Status',
+          onPress: () => promptEditStatus(match)
+        },
+        {
+          text: 'Edit Stats',
+          onPress: () => Alert.alert('Coming Soon', 'Match statistics editing will be implemented soon.')
+        },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
+  const promptEditScore = (match: MatchStats) => {
+    Alert.alert(
+      'Edit Score',
+      `Current: ${match.homeTeam} ${match.homeScore} - ${match.awayScore} ${match.awayTeam}`,
+      [
+        {
+          text: 'Home +1',
+          onPress: () => updateMatchScore(match.id, match.homeScore + 1, match.awayScore)
+        },
+        {
+          text: 'Away +1',
+          onPress: () => updateMatchScore(match.id, match.homeScore, match.awayScore + 1)
+        },
+        {
+          text: 'Reset (0-0)',
+          onPress: () => updateMatchScore(match.id, 0, 0)
+        },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
+  const promptEditStatus = (match: MatchStats) => {
+    Alert.alert(
+      'Edit Status',
+      `Current status: ${match.status}`,
+      [
+        {
+          text: 'Live',
+          onPress: () => updateMatchStatus(match.id, 'live')
+        },
+        {
+          text: 'Completed',
+          onPress: () => updateMatchStatus(match.id, 'completed')
+        },
+        {
+          text: 'Scheduled',
+          onPress: () => updateMatchStatus(match.id, 'scheduled')
+        },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
+  const updateMatchScore = async (matchId: string, homeScore: number, awayScore: number) => {
+    try {
+      const db = getFirestore();
+      const matchRef = doc(db, 'matches', matchId);
+      
+      await updateDoc(matchRef, {
+        homeScore: Math.max(0, homeScore),
+        awayScore: Math.max(0, awayScore),
+        updatedAt: new Date()
+      });
+      
+      Alert.alert('Success', 'Match score updated successfully!');
+      fetchMatchStats();
+    } catch (error) {
+      console.error('Error updating match score:', error);
+      Alert.alert('Error', 'Failed to update match score');
+    }
+  };
+
+  const updateMatchStatus = async (matchId: string, status: string) => {
+    try {
+      const db = getFirestore();
+      const matchRef = doc(db, 'matches', matchId);
+      
+      await updateDoc(matchRef, {
+        status,
+        updatedAt: new Date()
+      });
+      
+      Alert.alert('Success', 'Match status updated successfully!');
+      fetchMatchStats();
+    } catch (error) {
+      console.error('Error updating match status:', error);
+      Alert.alert('Error', 'Failed to update match status');
+    }
   };
 
   const handleAddMatchStats = () => {
-    setShowAddModal(true);
-  };
-
-  const handleModalSave = () => {
-    fetchMatchStats(); // Refresh the list
+    Alert.alert(
+      'Add Match Statistics',
+      'Choose how to add match statistics:',
+      [
+        {
+          text: 'Quick Add',
+          onPress: () => Alert.alert('Coming Soon', 'Quick add match stats will be implemented soon.')
+        },
+        {
+          text: 'Full Stats',
+          onPress: () => Alert.alert('Coming Soon', 'Full match statistics editor will be implemented soon.')
+        },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
   };
 
   const formatDate = (timestamp: any): string => {
@@ -659,7 +383,7 @@ export default function AdminMatchStatsScreen() {
   };
 
   const getStatusBadge = (status?: string | null) => {
-    const safeStatus = status || 'unknown';
+    const safeStatus = String(status || 'unknown');
     
     switch (safeStatus.toLowerCase()) {
       case 'live':
@@ -685,106 +409,241 @@ export default function AdminMatchStatsScreen() {
     (selectedLeague === 'all' || match.league === selectedLeague)
   );
 
-  const renderMatchStatItem = ({ item }: { item: MatchStats }) => (
-    <Card style={styles.matchCard}>
-      <View style={styles.matchHeader}>
-        <View style={styles.matchInfo}>
-          <View style={styles.teamsContainer}>
-            <Text style={styles.teamName}>{item.homeTeam || 'Home Team'}</Text>
-            <View style={styles.scoreContainer}>
-              <Text style={styles.score}>
-                {item.homeScore || 0} - {item.awayScore || 0}
-              </Text>
-            </View>
-            <Text style={styles.teamName}>{item.awayTeam || 'Away Team'}</Text>
-          </View>
-          <Text style={styles.matchMeta}>
-            {item.league} • {formatDate(item.date)}
-          </Text>
-          <Text style={styles.venue}>{item.venue || 'Venue TBD'}</Text>
+  // FIXED renderMatchStatItem with professional UI enhancements
+ const renderMatchStatItem = ({ item }: { item: MatchStats }) => {
+  // Early return if item is invalid
+  if (!item || typeof item !== 'object') {
+    console.warn('Invalid item passed to renderMatchStatItem:', item);
+    return (
+      <Card style={styles.matchCard}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTextRed}>Invalid match data</Text>
         </View>
-        <View style={styles.statusContainer}>
-          {getStatusBadge(item.status)}
+      </Card>
+    );
+  }
+
+  const isLive = item.status === 'live';
+  const isCompleted = item.status === 'completed';
+  const showStats = isLive || isCompleted;
+  
+  // Safely extract all values
+  const homeTeam = safeString(item.homeTeam, 'Home Team');
+  const awayTeam = safeString(item.awayTeam, 'Away Team');
+  const homeScore = safeNumber(item.homeScore, 0);
+  const awayScore = safeNumber(item.awayScore, 0);
+  const venue = safeString(item.venue, 'TBD');
+  const league = safeString(item.league, 'Unknown League');
+  const season = safeString(item.season, 'Unknown Season');
+  const referee = safeString(item.referee);
+  const attendance = safeNumber(item.attendance);
+  
+  return (
+    <Animated.View style={{ opacity: fadeAnim }}>
+      <Card style={[styles.matchCard, isLive && styles.liveMatchCard]}>
+        {/* Match Header Section */}
+        <View style={styles.matchHeader}>
+          <View style={styles.statusBadgeContainer}>
+            {getStatusBadge(item.status)}
+          </View>
           <TouchableOpacity 
             style={styles.editButton}
             onPress={() => handleEditMatch(item.id)}
           >
-            <Feather name="edit-2" size={16} color="#2563eb" />
+            <Feather name="edit-2" size={18} color="#3b82f6" />
           </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Match Statistics */}
-      {item.status === 'completed' && (
-        <View style={styles.statsSection}>
-          <Text style={styles.statsSectionTitle}>Match Statistics</Text>
-          
-          <View style={styles.statsGrid}>
-            <View style={styles.statRow}>
-              <Text style={styles.homeStatValue}>{item.homeStats.possession}%</Text>
-              <Text style={styles.statLabel}>Possession</Text>
-              <Text style={styles.awayStatValue}>{item.awayStats.possession}%</Text>
+        {/* Match Info Section */}
+        <View style={styles.matchInfoSection}>
+          <View style={styles.dateVenueContainer}>
+            <View style={styles.dateIconContainer}>
+              <Feather name="calendar" size={14} color="#6b7280" />
+              <Text style={styles.dateText}>{formatDate(item.date)}</Text>
             </View>
-            
-            <View style={styles.statRow}>
-              <Text style={styles.homeStatValue}>{item.homeStats.shots}</Text>
-              <Text style={styles.statLabel}>Shots</Text>
-              <Text style={styles.awayStatValue}>{item.awayStats.shots}</Text>
-            </View>
-            
-            <View style={styles.statRow}>
-              <Text style={styles.homeStatValue}>{item.homeStats.shotsOnTarget}</Text>
-              <Text style={styles.statLabel}>Shots on Target</Text>
-              <Text style={styles.awayStatValue}>{item.awayStats.shotsOnTarget}</Text>
-            </View>
-            
-            <View style={styles.statRow}>
-              <Text style={styles.homeStatValue}>{item.homeStats.corners}</Text>
-              <Text style={styles.statLabel}>Corners</Text>
-              <Text style={styles.awayStatValue}>{item.awayStats.corners}</Text>
-            </View>
-            
-            <View style={styles.statRow}>
-              <Text style={styles.homeStatValue}>{item.homeStats.fouls}</Text>
-              <Text style={styles.statLabel}>Fouls</Text>
-              <Text style={styles.awayStatValue}>{item.awayStats.fouls}</Text>
-            </View>
-            
-            <View style={styles.statRow}>
-              <Text style={styles.homeStatValue}>
-                {item.homeStats.yellowCards}/{item.homeStats.redCards}
-              </Text>
-              <Text style={styles.statLabel}>Cards</Text>
-              <Text style={styles.awayStatValue}>
-                {item.awayStats.yellowCards}/{item.awayStats.redCards}
-              </Text>
+            <View style={styles.venueIconContainer}>
+              <Feather name="map-pin" size={14} color="#6b7280" />
+              <Text style={styles.venueText}>{venue}</Text>
             </View>
           </View>
+          
+          <Text style={styles.leagueText}>{league} • {season}</Text>
         </View>
-      )}
 
-      {/* Match Events */}
-      {item.events && item.events.length > 0 && (
-        <View style={styles.eventsSection}>
-          <Text style={styles.eventsSectionTitle}>Key Events</Text>
-          {item.events.slice(0, 3).map((event, index) => (
-            <View key={index} style={styles.eventItem}>
-              <Text style={styles.eventMinute}>{event.minute}'</Text>
-              <Feather 
-                name={event.type === 'goal' ? 'target' : event.type === 'yellow_card' ? 'square' : 'x-square'} 
-                size={14} 
-                color={event.type === 'goal' ? '#16a34a' : event.type === 'yellow_card' ? '#f59e0b' : '#ef4444'} 
-              />
-              <Text style={styles.eventDescription}>{event.player} - {event.description}</Text>
+        {/* Teams and Score Section */}
+        <View style={styles.mainMatchContainer}>
+          <View style={styles.teamContainer}>
+            <View style={styles.teamLogoPlaceholder}>
+              <Text style={styles.teamInitial}>
+                {homeTeam.charAt(0).toUpperCase()}
+              </Text>
             </View>
-          ))}
-          {item.events.length > 3 && (
-            <Text style={styles.moreEvents}>+{item.events.length - 3} more events</Text>
-          )}
+            <Text style={styles.teamName} numberOfLines={2}>{homeTeam}</Text>
+          </View>
+          
+          <View style={styles.scoreContainer}>
+            <Text style={[styles.score, isLive && styles.liveScore]}>
+              {homeScore.toString()}
+            </Text>
+            <Text style={styles.scoreDivider}>-</Text>
+            <Text style={[styles.score, isLive && styles.liveScore]}>
+              {awayScore.toString()}
+            </Text>
+          </View>
+          
+          <View style={styles.teamContainer}>
+            <View style={styles.teamLogoPlaceholder}>
+              <Text style={styles.teamInitial}>
+                {awayTeam.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <Text style={styles.teamName} numberOfLines={2}>{awayTeam}</Text>
+          </View>
         </View>
-      )}
-    </Card>
+
+        {/* Match Statistics - Enhanced UI */}
+        {showStats && item.homeStats && item.awayStats && (
+          <View style={styles.statsSection}>
+            <Text style={styles.statsSectionTitle}>MATCH STATISTICS</Text>
+            
+            <View style={styles.statsGrid}>
+              {/* Possession with visual bar */}
+              <View style={styles.possessionContainer}>
+                <View style={styles.possessionLabels}>
+                  <Text style={styles.possessionValue}>
+                    {safeNumber(item.homeStats.possession, 0).toString()}%
+                  </Text>
+                  <Text style={styles.possessionLabel}>Possession</Text>
+                  <Text style={styles.possessionValue}>
+                    {safeNumber(item.awayStats.possession, 0).toString()}%
+                  </Text>
+                </View>
+                <View style={styles.possessionBar}>
+                  <View style={[
+                    styles.homePossessionFill, 
+                    { width: `${safeNumber(item.homeStats.possession, 0)}%` }
+                  ]} />
+                  <View style={[
+                    styles.awayPossessionFill, 
+                    { width: `${safeNumber(item.awayStats.possession, 0)}%` }
+                  ]} />
+                </View>
+              </View>
+
+              {/* Other Stats */}
+              {[
+                { 
+                  label: 'Total Shots', 
+                  home: safeNumber(item.homeStats.shots, 0), 
+                  away: safeNumber(item.awayStats.shots, 0) 
+                },
+                { 
+                  label: 'Shots on Target', 
+                  home: safeNumber(item.homeStats.shotsOnTarget, 0), 
+                  away: safeNumber(item.awayStats.shotsOnTarget, 0) 
+                },
+                { 
+                  label: 'Corners', 
+                  home: safeNumber(item.homeStats.corners, 0), 
+                  away: safeNumber(item.awayStats.corners, 0) 
+                },
+                { 
+                  label: 'Fouls', 
+                  home: safeNumber(item.homeStats.fouls, 0), 
+                  away: safeNumber(item.awayStats.fouls, 0) 
+                },
+                { 
+                  label: 'Yellow Cards', 
+                  home: safeNumber(item.homeStats.yellowCards, 0), 
+                  away: safeNumber(item.awayStats.yellowCards, 0) 
+                },
+                { 
+                  label: 'Red Cards', 
+                  home: safeNumber(item.homeStats.redCards, 0), 
+                  away: safeNumber(item.awayStats.redCards, 0) 
+                },
+              ].map((stat, index) => (
+                <View key={index} style={styles.statRow}>
+                  <Text style={styles.statValue}>{stat.home.toString()}</Text>
+                  <Text style={styles.statLabel}>{stat.label}</Text>
+                  <Text style={styles.statValue}>{stat.away.toString()}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Match Events - Enhanced */}
+        {item.events && Array.isArray(item.events) && item.events.length > 0 && (
+          <View style={styles.eventsSection}>
+            <Text style={styles.eventsSectionTitle}>KEY EVENTS</Text>
+            <View style={styles.eventsContainer}>
+              {item.events.slice(0, 5).map((event, index) => {
+                if (!event || typeof event !== 'object') return null;
+                
+                const eventType = safeString(event.type, 'unknown');
+                const eventMinute = safeNumber(event.minute, 0);
+                const eventPlayer = safeString(event.player, 'Unknown');
+                const eventDescription = safeString(event.description || eventType, 'Unknown Event');
+                
+                const eventIcon = {
+                  goal: 'target',
+                  yellow_card: 'square',
+                  red_card: 'x-square',
+                  substitution: 'refresh-cw',
+                  penalty: 'target'
+                }[eventType] || 'circle';
+                
+                const eventColor = {
+                  goal: '#10b981',
+                  yellow_card: '#f59e0b',
+                  red_card: '#ef4444',
+                  substitution: '#6b7280',
+                  penalty: '#3b82f6'
+                }[eventType] || '#6b7280';
+                
+                return (
+                  <View key={index} style={styles.eventItem}>
+                    <View style={styles.eventTimeContainer}>
+                      <Text style={styles.eventMinute}>{eventMinute.toString()}'</Text>
+                    </View>
+                    <View style={[styles.eventIconContainer, { backgroundColor: `${eventColor}15` }]}>
+                      <Feather name={eventIcon as any} size={16} color={eventColor} />
+                    </View>
+                    <View style={styles.eventDetails}>
+                      <Text style={styles.eventPlayer}>{eventPlayer}</Text>
+                      <Text style={styles.eventDescription}>{eventDescription}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Additional Info Footer */}
+        {(referee || attendance > 0) && (
+          <View style={styles.additionalInfo}>
+            {referee && (
+              <View style={styles.infoItem}>
+                <Feather name="user" size={12} color="#6b7280" />
+                <Text style={styles.infoText}>Referee: {referee}</Text>
+              </View>
+            )}
+            {attendance > 0 && (
+              <View style={styles.infoItem}>
+                <Feather name="users" size={12} color="#6b7280" />
+                <Text style={styles.infoText}>
+                  Attendance: {attendance.toLocaleString()}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+      </Card>
+    </Animated.View>
   );
+};
 
   // Loading state
   if (authLoading || (!hasCheckedAuth && isAdmin !== false)) {
@@ -806,7 +665,19 @@ export default function AdminMatchStatsScreen() {
 
   // Auth check
   if (!isAdmin || !hasCheckedAuth) {
-    return null;
+    return (
+      <LinearGradient
+        colors={['#0047AB', '#191970', '#041E42']}
+        style={styles.container}
+      >
+        <SafeAreaView style={styles.safeArea}>
+          <Header title="Match Statistics" showBack={true} />
+          <View style={styles.loadingContainer}>
+            <Text style={styles.errorText}>Access denied</Text>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+    );
   }
 
   return (
@@ -819,25 +690,24 @@ export default function AdminMatchStatsScreen() {
       <SafeAreaView style={styles.safeArea}>
         <Header title="Match Statistics" showBack={true} />
         
-        <ScrollView 
-          style={styles.content}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor="#2563eb"
-            />
-          }
-        >
+        <View style={styles.content}>
           {/* Header Section */}
           <View style={styles.headerSection}>
-            <Text style={styles.titleText}>Match Statistics ({filteredStats.length})</Text>
+            <View>
+              <Text style={styles.titleText}>Match Statistics</Text>
+              <Text style={styles.subtitleText}>{filteredStats.length} matches found</Text>
+            </View>
             <TouchableOpacity 
               style={styles.addButton}
               onPress={handleAddMatchStats}
             >
-              <Feather name="plus" size={16} color="white" />
-              <Text style={styles.addButtonText}>Add Stats</Text>
+              <LinearGradient
+                colors={['#3b82f6', '#2563eb']}
+                style={styles.addButtonGradient}
+              >
+                <Feather name="plus" size={18} color="white" />
+                <Text style={styles.addButtonText}>Add Stats</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
@@ -847,11 +717,16 @@ export default function AdminMatchStatsScreen() {
               <Feather name="search" size={20} color="#6b7280" />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search matches..."
+                placeholder="Search teams, leagues..."
                 placeholderTextColor="#9ca3af"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Feather name="x" size={20} color="#6b7280" />
+                </TouchableOpacity>
+              )}
             </View>
             
             <ScrollView 
@@ -860,130 +735,118 @@ export default function AdminMatchStatsScreen() {
               style={styles.filterScroll}
               contentContainerStyle={styles.filterContainer}
             >
-              <TouchableOpacity
-                style={[
-                  styles.filterButton,
-                  selectedStatus === 'all' && styles.activeFilterButton
-                ]}
-                onPress={() => setSelectedStatus('all')}
-              >
-                <Text style={[
-                  styles.filterText,
-                  selectedStatus === 'all' && styles.activeFilterText
-                ]}>
-                  All Matches
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.filterButton,
-                  selectedStatus === 'live' && styles.activeFilterButton
-                ]}
-                onPress={() => setSelectedStatus('live')}
-              >
-                <Text style={[
-                  styles.filterText,
-                  selectedStatus === 'live' && styles.activeFilterText
-                ]}>
-                  Live
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.filterButton,
-                  selectedStatus === 'completed' && styles.activeFilterButton
-                ]}
-                onPress={() => setSelectedStatus('completed')}
-              >
-                <Text style={[
-                  styles.filterText,
-                  selectedStatus === 'completed' && styles.activeFilterText
-                ]}>
-                  Completed
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.filterButton,
-                  selectedStatus === 'scheduled' && styles.activeFilterButton
-                ]}
-                onPress={() => setSelectedStatus('scheduled')}
-              >
-                <Text style={[
-                  styles.filterText,
-                  selectedStatus === 'scheduled' && styles.activeFilterText
-                ]}>
-                  Scheduled
-                </Text>
-              </TouchableOpacity>
+              {['all', 'live', 'completed', 'scheduled'].map((status) => (
+                <TouchableOpacity
+                  key={status}
+                  style={[
+                    styles.filterButton,
+                    selectedStatus === status && styles.activeFilterButton
+                  ]}
+                  onPress={() => setSelectedStatus(status)}
+                >
+                  <Text style={[
+                    styles.filterText,
+                    selectedStatus === status && styles.activeFilterText
+                  ]}>
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </ScrollView>
           </View>
 
           {/* Summary Stats */}
-          <Card style={styles.summaryCard}>
-            <View style={styles.summaryGrid}>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>{filteredStats.length}</Text>
-                <Text style={styles.summaryLabel}>Total Matches</Text>
+          <View style={styles.summaryContainer}>
+            <LinearGradient
+              colors={['#f8fafc', '#f1f5f9']}
+              style={styles.summaryCard}
+            >
+              <View style={styles.summaryGrid}>
+                <View style={styles.summaryItem}>
+                  <View style={styles.summaryIconContainer}>
+                    <Feather name="activity" size={20} color="#3b82f6" />
+                  </View>
+                  <Text style={styles.summaryValue}>{filteredStats.length}</Text>
+                  <Text style={styles.summaryLabel}>Total Matches</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <View style={[styles.summaryIconContainer, { backgroundColor: '#fef3c7' }]}>
+                    <Feather name="radio" size={20} color="#f59e0b" />
+                  </View>
+                  <Text style={styles.summaryValue}>
+                    {filteredStats.filter(m => m.status === 'live').length}
+                  </Text>
+                  <Text style={styles.summaryLabel}>Live Now</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <View style={[styles.summaryIconContainer, { backgroundColor: '#d1fae5' }]}>
+                    <Feather name="check-circle" size={20} color="#10b981" />
+                  </View>
+                  <Text style={styles.summaryValue}>
+                    {filteredStats.filter(m => m.status === 'completed').length}
+                  </Text>
+                  <Text style={styles.summaryLabel}>Completed</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <View style={[styles.summaryIconContainer, { backgroundColor: '#fce7f3' }]}>
+                    <Feather name="target" size={20} color="#ec4899" />
+                  </View>
+                  <Text style={styles.summaryValue}>
+                    {filteredStats.reduce((sum, m) => sum + m.homeScore + m.awayScore, 0)}
+                  </Text>
+                  <Text style={styles.summaryLabel}>Total Goals</Text>
+                </View>
               </View>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>
-                  {filteredStats.filter(m => m.status === 'live').length}
-                </Text>
-                <Text style={styles.summaryLabel}>Live Now</Text>
-              </View>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>
-                  {filteredStats.filter(m => m.status === 'completed').length}
-                </Text>
-                <Text style={styles.summaryLabel}>Completed</Text>
-              </View>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>
-                  {filteredStats.reduce((sum, m) => sum + (m.homeScore || 0) + (m.awayScore || 0), 0)}
-                </Text>
-                <Text style={styles.summaryLabel}>Total Goals</Text>
-              </View>
-            </View>
-          </Card>
+            </LinearGradient>
+          </View>
 
           {/* Matches List */}
-          {filteredStats.length === 0 ? (
-            <Card style={styles.emptyCard}>
-              <View style={styles.emptyContainer}>
-                <Feather name="activity" size={48} color="#9ca3af" />
-                <Text style={styles.emptyText}>No match statistics found</Text>
-                <Text style={styles.emptySubtext}>
-                  Add some match statistics or try adjusting your search criteria
-                </Text>
-                <TouchableOpacity 
-                  style={styles.emptyButton}
-                  onPress={handleAddMatchStats}
-                >
-                  <Text style={styles.emptyButtonText}>Add First Match Stats</Text>
-                </TouchableOpacity>
-              </View>
-            </Card>
-          ) : (
-            <FlatList
-              data={filteredStats}
-              renderItem={renderMatchStatItem}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-              contentContainerStyle={styles.matchesList}
-            />
-          )}
-        </ScrollView>
-
-        {/* Add Match Stats Modal */}
-        <AddMatchStatsModal
-          visible={showAddModal}
-          onClose={() => setShowAddModal(false)}
-          onSave={handleModalSave}
-        />
+          <FlatList
+            data={filteredStats}
+            renderItem={renderMatchStatItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.matchesList}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor="#3b82f6"
+                colors={['#3b82f6']}
+              />
+            }
+            ListEmptyComponent={
+              loading ? (
+                <View style={styles.loadingSection}>
+                  <ActivityIndicator size="large" color="#3b82f6" />
+                  <Text style={styles.loadingSectionText}>Loading matches...</Text>
+                </View>
+              ) : (
+                <Card style={styles.emptyCard}>
+                  <View style={styles.emptyContainer}>
+                    <View style={styles.emptyIconContainer}>
+                      <Feather name="activity" size={48} color="#e5e7eb" />
+                    </View>
+                    <Text style={styles.emptyText}>No match statistics found</Text>
+                    <Text style={styles.emptySubtext}>
+                      Start by adding your first match statistics
+                    </Text>
+                    <TouchableOpacity 
+                      style={styles.emptyButton}
+                      onPress={handleAddMatchStats}
+                    >
+                      <LinearGradient
+                        colors={['#3b82f6', '#2563eb']}
+                        style={styles.emptyButtonGradient}
+                      >
+                        <Text style={styles.emptyButtonText}>Add First Match</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                </Card>
+              )
+            }
+          />
+        </View>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -998,106 +861,143 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    backgroundColor: '#f9fafb',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   loadingText: {
     color: 'white',
     fontSize: 16,
-    marginTop: 12,
+    marginTop: 16,
+    fontWeight: '500',
+  },
+  loadingSection: {
+    padding: 60,
+    alignItems: 'center',
+  },
+  loadingSectionText: {
+    color: '#6b7280',
+    fontSize: 16,
+    marginTop: 16,
+  },
+  errorText: {
+    color: 'white',
+    fontSize: 16,
+    textAlign: 'center',
+    margin: 20,
   },
   headerSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
-    backgroundColor: 'white',
   },
   titleText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  subtitleText: {
+    fontSize: 14,
+    color: '#6b7280',
   },
   addButton: {
-    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  addButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    minWidth: 110,
-    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   addButtonText: {
     color: 'white',
-    fontWeight: '500',
-    marginLeft: 4,
-    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+    fontSize: 15,
   },
   filtersContainer: {
     backgroundColor: 'white',
     paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    paddingHorizontal: 16,
     height: 48,
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginTop: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
   searchInput: {
     flex: 1,
-    marginLeft: 8,
+    marginLeft: 12,
     fontSize: 16,
     color: '#111827',
   },
   filterScroll: {
-    marginBottom: 8,
+    marginTop: 8,
   },
   filterContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    gap: 8,
   },
   filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     marginRight: 8,
     backgroundColor: '#f3f4f6',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
   activeFilterButton: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
+    backgroundColor: '#dbeafe',
+    borderColor: '#3b82f6',
   },
   filterText: {
     color: '#6b7280',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   activeFilterText: {
-    color: 'white',
+    color: '#3b82f6',
+  },
+  summaryContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   summaryCard: {
-    margin: 16,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   summaryGrid: {
     flexDirection: 'row',
@@ -1106,161 +1006,312 @@ const styles = StyleSheet.create({
   summaryItem: {
     alignItems: 'center',
   },
+  summaryIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#dbeafe',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   summaryValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '700',
     color: '#111827',
     marginBottom: 4,
   },
   summaryLabel: {
     fontSize: 12,
     color: '#6b7280',
+    fontWeight: '500',
   },
   matchesList: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 100,
   },
   matchCard: {
     marginBottom: 16,
-    padding: 16,
+    padding: 0,
+    borderRadius: 16,
+    backgroundColor: 'white',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    overflow: 'hidden',
+  },
+  liveMatchCard: {
+    borderWidth: 2,
+    borderColor: '#fbbf24',
   },
   matchHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
-  matchInfo: {
-    flex: 1,
-  },
-  teamsContainer: {
+  statusBadgeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  teamName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    flex: 1,
-  },
-  scoreContainer: {
-    marginHorizontal: 16,
-  },
-  score: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2563eb',
-    textAlign: 'center',
-  },
-  matchMeta: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 4,
-  },
-  venue: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
-  statusContainer: {
-    alignItems: 'flex-end',
   },
   editButton: {
     padding: 8,
-    borderRadius: 6,
+    borderRadius: 8,
     backgroundColor: '#eff6ff',
-    marginTop: 8,
+  },
+  matchInfoSection: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  dateVenueContainer: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 6,
+  },
+  dateIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  venueIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  venueText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  leagueText: {
+    fontSize: 13,
+    color: '#9ca3af',
+    fontWeight: '500',
+  },
+  mainMatchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  teamContainer: {
+    flex: 1,
+    alignItems: 'center',
+    maxWidth: 100,
+  },
+  teamLogoPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+  },
+  teamInitial: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#6b7280',
+  },
+  teamName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  scoreContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  score: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#111827',
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  liveScore: {
+    color: '#f59e0b',
+  },
+  scoreDivider: {
+    fontSize: 24,
+    color: '#d1d5db',
+    marginHorizontal: 8,
   },
   statsSection: {
-    marginTop: 16,
-    paddingTop: 16,
+    backgroundColor: '#f9fafb',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
   },
   statsSectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6b7280',
+    letterSpacing: 0.5,
+    marginBottom: 16,
+  },
+  statsGrid: {
+    gap: 12,
+  },
+  possessionContainer: {
+    marginBottom: 8,
+  },
+  possessionLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  possessionValue: {
     fontSize: 14,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 12,
   },
-  statsGrid: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    padding: 12,
+  possessionLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  possessionBar: {
+    height: 8,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  homePossessionFill: {
+    backgroundColor: '#3b82f6',
+    height: '100%',
+  },
+  awayPossessionFill: {
+    backgroundColor: '#ef4444',
+    height: '100%',
   },
   statRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
   },
-  homeStatValue: {
-    fontSize: 14,
+  statValue: {
+    fontSize: 16,
     fontWeight: '600',
     color: '#111827',
-    width: 60,
-    textAlign: 'left',
+    minWidth: 40,
+    textAlign: 'center',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#6b7280',
+    fontWeight: '500',
     flex: 1,
     textAlign: 'center',
   },
-  awayStatValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-    width: 60,
-    textAlign: 'right',
-  },
   eventsSection: {
-    marginTop: 16,
-    paddingTop: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    backgroundColor: '#fefefe',
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
   },
   eventsSectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6b7280',
+    letterSpacing: 0.5,
+    marginBottom: 16,
+  },
+  eventsContainer: {
+    gap: 12,
   },
   eventItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: 12,
+  },
+  eventTimeContainer: {
+    minWidth: 40,
   },
   eventMinute: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#2563eb',
-    width: 30,
+    color: '#3b82f6',
+  },
+  eventIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eventDetails: {
+    flex: 1,
+  },
+  eventPlayer: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2,
   },
   eventDescription: {
     fontSize: 12,
-    color: '#4b5563',
-    marginLeft: 8,
-    flex: 1,
+    color: '#6b7280',
+    textTransform: 'capitalize',
   },
-  moreEvents: {
+  additionalInfo: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#f9fafb',
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+    flexDirection: 'row',
+    gap: 20,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  infoText: {
     fontSize: 12,
     color: '#6b7280',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: 8,
   },
   emptyCard: {
-    margin: 16,
-    padding: 32,
+    margin: 20,
+    padding: 40,
   },
   emptyContainer: {
     alignItems: 'center',
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
     color: '#374151',
-    marginTop: 16,
     marginBottom: 8,
   },
   emptySubtext: {
@@ -1271,135 +1322,26 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   emptyButton: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 6,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  emptyButtonGradient: {
+    paddingHorizontal: 24,
+    paddingVertical: 14,
   },
   emptyButtonText: {
     color: 'white',
-    fontWeight: '500',
+    fontWeight: '600',
     fontSize: 16,
   },
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-  },
-  modalSafeArea: {
-    flex: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.2)',
-  },
-  closeButton: {
-    padding: 8,
-  },
-  modalHeaderTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  saveButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  saveButtonText: {
-    color: 'white',
-    fontWeight: '500',
-  },
-  modalContent: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  section: {
-    margin: 16,
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 16,
-  },
-  teamsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: 16,
-  },
-  teamInput: {
-    flex: 1,
-  },
-  scoreContainerModal: {
-    marginHorizontal: 16,
-    alignItems: 'center',
-  },
-  scoreInputs: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  scoreInput: {
-    width: 50,
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    backgroundColor: 'white',
-    textAlign: 'center',
-    fontSize: 16,
-    color: '#111827',
-  },
-  scoreSeparator: {
-    marginHorizontal: 8,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  row: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  halfWidth: {
-    flex: 1,
-    marginRight: 8,
-  },
-  statsGridModal: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -4,
-  },
-  statInput: {
-    width: '50%',
-    paddingHorizontal: 4,
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  input: {
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    backgroundColor: 'white',
-    fontSize: 16,
-    color: '#111827',
-  },
+errorContainer: {
+  padding: 20,
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+errorTextRed: {
+  fontSize: 14,
+  color: '#ef4444',
+  textAlign: 'center',
+},
 });

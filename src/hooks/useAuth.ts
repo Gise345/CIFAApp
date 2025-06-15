@@ -60,17 +60,14 @@ export const useAuth = (): UseAuthReturn => {
   // Check if user is admin when user changes
   useEffect(() => {
     const setupAdminCheck = async () => {
-      console.log('🔍 useAuth: Starting admin check setup');
       
       // Clean up previous listener
       if (userDocListener) {
-        console.log('🧹 useAuth: Cleaning up previous listener');
         userDocListener();
         setUserDocListener(null);
       }
 
       if (!user) {
-        console.log('❌ useAuth: No user, resetting admin status');
         setIsAdmin(false);
         setAdminStatus(false);
         setAuthUser(null);
@@ -79,7 +76,6 @@ export const useAuth = (): UseAuthReturn => {
       }
 
       try {
-        console.log('👤 useAuth: Setting up admin check for user:', user.email, 'UID:', user.uid);
         
         // Map User to AuthUser
         const mappedUser: AuthUser = {
@@ -91,7 +87,6 @@ export const useAuth = (): UseAuthReturn => {
         setAuthUser(mappedUser);
         
         if (!firestore) {
-          console.log('🚫 useAuth: Firestore not available, defaulting to non-admin');
           setIsAdmin(false);
           setAdminStatus(false);
           setInitialized(true);
@@ -100,12 +95,10 @@ export const useAuth = (): UseAuthReturn => {
         
         // Set up real-time listener for user document
         const userDocRef = doc(firestore, 'users', user.uid);
-        console.log('📄 useAuth: Setting up listener for user document');
         
         const unsubscribe = onSnapshot(
           userDocRef,
           (docSnapshot) => {
-            console.log('📄 useAuth: User document listener triggered');
             
             if (docSnapshot.exists()) {
               const userData = docSnapshot.data() as UserProfile;
@@ -114,26 +107,15 @@ export const useAuth = (): UseAuthReturn => {
               const isRoleAdmin = userData.role === 'admin';
               const isAdminFlag = userData.isAdmin === true;
               const adminCheck = isRoleAdmin || isAdminFlag;
-              
-              console.log('✅ useAuth: User data analysis:', {
-                email: userData.email,
-                role: userData.role,
-                isAdmin: userData.isAdmin,
-                isActive: userData.isActive,
-                isRoleAdmin,
-                isAdminFlag,
-                finalAdminStatus: adminCheck
-              });
-              
+                           
               setIsAdmin(adminCheck);
               setAdminStatus(adminCheck);
               setInitialized(true);
               
-              console.log(`🎯 useAuth: Admin status set to: ${adminCheck}`);
             } else {
-              console.log('❌ useAuth: User document does not exist, defaulting to non-admin');
               setIsAdmin(false);
               setAdminStatus(false);
+              setAuthUser(null);
               setInitialized(true);
             }
           },
@@ -160,7 +142,6 @@ export const useAuth = (): UseAuthReturn => {
     // Cleanup on unmount
     return () => {
       if (userDocListener) {
-        console.log('🧹 useAuth: Cleaning up on unmount');
         userDocListener();
       }
     };
@@ -176,7 +157,6 @@ export const useAuth = (): UseAuthReturn => {
         throw new Error('Auth instance is not initialized');
       }
       
-      console.log('🔐 useAuth: Signing in user:', email);
       await signInWithEmailAndPassword(auth, email, password);
       
       setLoading(false);
@@ -202,7 +182,6 @@ export const useAuth = (): UseAuthReturn => {
         throw new Error('Firestore is not initialized');
       }
       
-      console.log('📝 useAuth: Creating user account:', email);
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
@@ -226,9 +205,7 @@ export const useAuth = (): UseAuthReturn => {
         updatedAt: new Date()
       };
       
-      await setDoc(doc(firestore, 'users', user.uid), userProfile);
-      console.log('✅ useAuth: User profile created in Firestore');
-      
+      await setDoc(doc(firestore, 'users', user.uid), userProfile);      
       setLoading(false);
     } catch (error) {
       console.error('🚨 useAuth: Error signing up:', error);
@@ -246,9 +223,7 @@ export const useAuth = (): UseAuthReturn => {
       if (!auth) {
         throw new Error('Auth instance is not initialized');
       }
-      
-      console.log('👋 useAuth: Signing out user');
-      
+            
       if (userDocListener) {
         userDocListener();
         setUserDocListener(null);
@@ -306,22 +281,13 @@ export const useAdminCheck = () => {
   
   const hasAdminAccess = () => {
     if (!initialized || loading) {
-      console.log('🚫 useAdminCheck: Not initialized or loading, denying access');
       return false;
     }
-    
     const hasAccess = isAdmin === true || adminStatus === true;
-    console.log('🔍 useAdminCheck: Access check result:', {
-      hasAccess,
-      isAdmin,
-      adminStatus,
-      initialized,
-      loading
-    });
-    
+
     return hasAccess;
   };
-  
+
   return {
     hasAdminAccess,
     isCheckingAdmin: !initialized || loading,

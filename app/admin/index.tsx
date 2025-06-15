@@ -93,12 +93,7 @@ export default function AdminDashboardScreen() {
   useEffect(() => {
   // Only check auth after loading is complete
   if (!authLoading) {
-    console.log('Admin Dashboard - Auth Check:', {
-      user: user?.email,
-      isAdmin,
-      authLoading
-    });
-    
+       
     if (!user) {
       Alert.alert('Authentication Required', 'Please log in to access this page');
       router.replace('/(auth)/login');
@@ -221,7 +216,6 @@ export default function AdminDashboardScreen() {
   // Navigation functions - NEW ROUTES FOR STATS & DATA SECTION
 const navigateToPlayerStats = () => {
   try {
-    console.log('🚀 Navigating to player stats...');
     router.push('/admin/players/stats' as any);
   } catch (error) {
     console.error('❌ Navigation error to player stats:', error);
@@ -231,7 +225,6 @@ const navigateToPlayerStats = () => {
 
 const navigateToTeamStandings = () => {
   try {
-    console.log('🚀 Navigating to team standings...');
     router.push('/admin/teams/standings' as any);
   } catch (error) {
     console.error('❌ Navigation error to team standings:', error);
@@ -241,7 +234,6 @@ const navigateToTeamStandings = () => {
 
 const navigateToMatchStats = () => {
   try {
-    console.log('🚀 Navigating to match stats...');
     router.push('/admin/matches/stats' as any);
   } catch (error) {
     console.error('❌ Navigation error to match stats:', error);
